@@ -39,7 +39,12 @@ export function ProfileSection({ title, icon: Icon, children }: ProfileSectionPr
   );
 }
 
-export function ProfileMainContent({ user, posts }: { user: Profile; posts: PostView[] }) {
+type ProfileMainContentProps = {
+  user: Profile;
+  posts: PostView[];
+};
+
+export function ProfileMainContent({ user, posts }: ProfileMainContentProps) {
   return (
     <div className="space-y-6">
       {user.bio && (
@@ -96,13 +101,13 @@ type ProfileSidebarProps = {
   user: Profile;
   isOwnProfile: boolean;
   recommendations: Recommendation[];
-  recommenders: Record<string, Profile>;
+  recommenderProfileByUserId: Record<string, Profile>;
   ranking: RankingUser[];
-  recommendationOpen: boolean;
+  isRecommendationDialogOpen: boolean;
   recommendationComment: string;
-  recommendationPending: boolean;
-  onRecommendationOpenChange: (open: boolean) => void;
-  onRecommendationCommentChange: (value: string) => void;
+  isRecommendationPending: boolean;
+  onRecommendationDialogOpenChange: (isOpen: boolean) => void;
+  onRecommendationCommentChange: (comment: string) => void;
   onRecommendationSubmit: () => void;
 };
 
@@ -110,12 +115,12 @@ export function ProfileSidebar({
   user,
   isOwnProfile,
   recommendations,
-  recommenders,
+  recommenderProfileByUserId,
   ranking,
-  recommendationOpen,
+  isRecommendationDialogOpen,
   recommendationComment,
-  recommendationPending,
-  onRecommendationOpenChange,
+  isRecommendationPending,
+  onRecommendationDialogOpenChange,
   onRecommendationCommentChange,
   onRecommendationSubmit,
 }: ProfileSidebarProps) {
@@ -132,7 +137,10 @@ export function ProfileSidebar({
           <p className="mb-3 text-[13px] font-light text-text-subtle">
             {texts.profile.recommendDescription}
           </p>
-          <Dialog open={recommendationOpen} onOpenChange={onRecommendationOpenChange}>
+          <Dialog
+            open={isRecommendationDialogOpen}
+            onOpenChange={onRecommendationDialogOpenChange}
+          >
             <DialogTrigger asChild>
               <Button size="sm" className="w-full rounded-full gap-1.5">
                 <ThumbsUp className="h-4 w-4" /> {texts.profile.recommendAction}
@@ -155,10 +163,10 @@ export function ProfileSidebar({
                 <Button
                   size="sm"
                   className="w-full rounded-full"
-                  disabled={!recommendationComment.trim() || recommendationPending}
+                  disabled={!recommendationComment.trim() || isRecommendationPending}
                   onClick={onRecommendationSubmit}
                 >
-                  {recommendationPending
+                  {isRecommendationPending
                     ? texts.common.sending
                     : texts.profile.sendRecommendation}
                 </Button>
@@ -172,17 +180,18 @@ export function ProfileSidebar({
         <ProfileSection title={texts.profile.sections.recommendations} icon={Star}>
           <div className="space-y-3">
             {recommendations.map((recommendation) => {
-              const recommender = recommenders[recommendation.recommenderId];
+              const recommenderProfile =
+                recommenderProfileByUserId[recommendation.recommenderId];
               return (
                 <div key={recommendation.id} className="rounded-xl bg-surface-1 p-3">
                   <div className="mb-2 flex items-center gap-2">
                     <UserAvatar
-                      src={recommender?.avatar}
-                      alt={recommender?.name}
+                      src={recommenderProfile?.avatar}
+                      alt={recommenderProfile?.name}
                       className="h-6 w-6"
                     />
                     <span className="text-[12px] font-medium text-text-strong">
-                      {recommender?.name ?? texts.profile.userFallback}
+                      {recommenderProfile?.name ?? texts.profile.userFallback}
                     </span>
                   </div>
                   <p className="break-words text-[13px] font-light leading-relaxed text-text-subtle">

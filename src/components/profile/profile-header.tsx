@@ -13,10 +13,10 @@ import { Button } from "@/components/ui/button";
 type ProfileHeaderProps = {
   user: Profile;
   isOwnProfile: boolean;
-  avatarUploading: boolean;
-  bannerUploading: boolean;
+  isAvatarUploading: boolean;
+  isBannerUploading: boolean;
   connectionLabel: string;
-  connectionDisabled: boolean;
+  isConnectionDisabled: boolean;
   onAvatarSelect: ChangeEventHandler<HTMLInputElement>;
   onBannerSelect: ChangeEventHandler<HTMLInputElement>;
   onMessage: () => void;
@@ -26,10 +26,10 @@ type ProfileHeaderProps = {
 export function ProfileHeader({
   user,
   isOwnProfile,
-  avatarUploading,
-  bannerUploading,
+  isAvatarUploading,
+  isBannerUploading,
   connectionLabel,
-  connectionDisabled,
+  isConnectionDisabled,
   onAvatarSelect,
   onBannerSelect,
   onMessage,
@@ -55,10 +55,10 @@ export function ProfileHeader({
             <label
               htmlFor="profile-banner-upload"
               className={`absolute inset-0 flex cursor-pointer items-center justify-center bg-black/30 text-white opacity-0 transition group-hover:opacity-100 ${
-                bannerUploading ? "pointer-events-none" : ""
+                isBannerUploading ? "pointer-events-none" : ""
               }`}
             >
-              {bannerUploading ? texts.common.sending : <Camera className="h-6 w-6" />}
+              {isBannerUploading ? texts.common.sending : <Camera className="h-6 w-6" />}
             </label>
             <input
               id="profile-banner-upload"
@@ -84,10 +84,10 @@ export function ProfileHeader({
                 <label
                   htmlFor="profile-avatar-upload"
                   className={`absolute inset-0 flex cursor-pointer items-center justify-center rounded-full bg-black/30 text-white opacity-0 transition group-hover:opacity-100 ${
-                    avatarUploading ? "pointer-events-none" : ""
+                    isAvatarUploading ? "pointer-events-none" : ""
                   }`}
                 >
-                  {avatarUploading ? "..." : <Camera className="h-5 w-5" />}
+                  {isAvatarUploading ? "..." : <Camera className="h-5 w-5" />}
                 </label>
                 <input
                   id="profile-avatar-upload"
@@ -121,7 +121,7 @@ export function ProfileHeader({
                   size="sm"
                   className="rounded-full gap-1.5"
                   onClick={onConnect}
-                  disabled={connectionDisabled}
+                  disabled={isConnectionDisabled}
                 >
                   {connectionLabel}
                 </Button>

@@ -9,8 +9,9 @@ import {
   networkApi,
   profileApi,
   rankingApi,
-  recommendationsApi,
+  recommendationApi,
   type Profile,
+  type UpdateProfileInput,
 } from "@/lib/api";
 import { useAuth } from "@/lib/use-auth";
 import { useMediaUpload } from "@/lib/use-media-upload";
@@ -24,8 +25,8 @@ import { ProfileHeader } from "@/components/profile/profile-header";
 export const Route = createFileRoute("/perfil/$username")({
   loader: async ({ params }) => {
     try {
-      const user = await profileApi.get(params.username);
-      return { user };
+      const profile = await profileApi.getByUsername(params.username);
+      return { profile };
     } catch {
       throw notFound();
     }
@@ -33,11 +34,11 @@ export const Route = createFileRoute("/perfil/$username")({
   head: ({ loaderData }) => ({
     meta: [
       {
-        title: `${loaderData?.user.name ?? texts.profile.seoFallbackTitle} · ${texts.brand.name}`,
+        title: `${loaderData?.profile.name ?? texts.profile.seoFallbackTitle} · ${texts.brand.name}`,
       },
       {
         name: "description",
-        content: loaderData?.user.headline ?? texts.profile.seoFallbackDescription,
+        content: loaderData?.profile.headline ?? texts.profile.seoFallbackDescription,
       },
     ],
   }),
@@ -61,53 +62,53 @@ export const Route = createFileRoute("/perfil/$username")({
       </div>
     </AppContainer>
   ),
-  component: ProfileRoute,
+  component: ProfilePage,
 });
 
-function ProfileRoute() {
-  const { user: loaderUser } = Route.useLoaderData();
-  const { user: me, requireAuth } = useAuth();
+function ProfilePage() {
+  const { profile: loaderProfile } = Route.useLoaderData();
+  const { user: currentUser, requireAuth } = useAuth();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const avatarUpload = useMediaUpload();
   const bannerUpload = useMediaUpload();
-  const [cropImageSrc, setCropImageSrc] = useState<string | null>(null);
+  const [cropImageSource, setCropImageSource] = useState<string | null>(null);
   const [cropPurpose, setCropPurpose] = useState<"AVATAR" | "BANNER" | null>(null);
-  const [recommendOpen, setRecommendOpen] = useState(false);
-  const [recommendComment, setRecommendComment] = useState("");
+  const [isRecommendationDialogOpen, setIsRecommendationDialogOpen] = useState(false);
+  const [recommendationComment, setRecommendationComment] = useState("");
 
   const { data: liveProfile } = useQuery({
-    queryKey: ["profile", loaderUser.username],
-    queryFn: () => profileApi.get(loaderUser.username),
-    initialData: loaderUser,
+    queryKey: ["profile", loaderProfile.username],
+    queryFn: () => profileApi.getByUsername(loaderProfile.username),
+    initialData: loaderProfile,
   });
 
-  const user = liveProfile ?? loaderUser;
-  const isOwnProfile = me?.id === user.id;
+  const profile = liveProfile ?? loaderProfile;
+  const isOwnProfile = currentUser?.id === profile.id;
 
-  const { data: connectionData } = useQuery({
-    queryKey: ["connection-status", user.id],
-    queryFn: () => networkApi.status(user.id),
-    enabled: !isOwnProfile && Boolean(me),
+  const { data: connectionStatusDetails } = useQuery({
+    queryKey: ["connection-status", profile.id],
+    queryFn: () => networkApi.getConnectionStatus(profile.id),
+    enabled: !isOwnProfile && Boolean(currentUser),
   });
 
-  const { data: feedData } = useQuery({
-    queryKey: ["feed", "user", user.id],
-    queryFn: () => feedApi.listByUserId(user.id),
+  const { data: profileFeedResponse } = useQuery({
+    queryKey: ["feed", "user", profile.id],
+    queryFn: () => feedApi.listByUserId(profile.id),
   });
 
-  const { data: rankingData } = useQuery({
+  const { data: ranking } = useQuery({
     queryKey: ["ranking"],
     queryFn: () => rankingApi.list(10),
   });
 
-  const { data: recommendationsData } = useQuery({
-    queryKey: ["recommendations", user.id],
-    queryFn: () => recommendationsApi.listReceived(user.id),
+  const { data: recommendationsResponse } = useQuery({
+    queryKey: ["recommendations", profile.id],
+    queryFn: () => recommendationApi.listReceived(profile.id),
   });
 
-  const recommendations = recommendationsData ?? [];
-  const recommenderQueries = useQueries({
+  const recommendations = recommendationsResponse ?? [];
+  const recommenderProfileQueries = useQueries({
     queries: recommendations.map((recommendation) => ({
       queryKey: ["profile", "by-id", recommendation.recommenderId],
       queryFn: () => profileApi.getById(recommendation.recommenderId),
@@ -115,71 +116,74 @@ function ProfileRoute() {
     })),
   });
 
-  const recommenders = recommendations.reduce<Record<string, Profile>>(
-    (profiles, recommendation, index) => {
-      const recommender = recommenderQueries[index]?.data;
-      if (recommender) profiles[recommendation.recommenderId] = recommender;
-      return profiles;
+  const recommenderProfileByUserId = recommendations.reduce<Record<string, Profile>>(
+    (profileByUserId, recommendation, index) => {
+      const recommenderProfile = recommenderProfileQueries[index]?.data;
+      if (recommenderProfile) {
+        profileByUserId[recommendation.recommenderId] = recommenderProfile;
+      }
+      return profileByUserId;
     },
     {},
   );
 
-  const updateProfile = useMutation({
-    mutationFn: (data: { avatar?: string; banner?: string }) => profileApi.update(data),
+  const updateProfileMutation = useMutation({
+    mutationFn: (input: Pick<UpdateProfileInput, "avatar" | "banner">) =>
+      profileApi.updateCurrent(input),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["me"] });
-      queryClient.invalidateQueries({ queryKey: ["profile", user.username] });
+      queryClient.invalidateQueries({ queryKey: ["profile", profile.username] });
     },
   });
 
-  const connect = useMutation({
-    mutationFn: () => networkApi.connect(user.id),
+  const sendConnectionRequestMutation = useMutation({
+    mutationFn: () => networkApi.sendConnectionRequest(profile.id),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["connection-status", user.id] });
+      queryClient.invalidateQueries({ queryKey: ["connection-status", profile.id] });
     },
     onError: (error: unknown) => {
       if (error instanceof ApiError && error.code === "CONNECTION_ALREADY_REQUESTED") {
-        queryClient.invalidateQueries({ queryKey: ["connection-status", user.id] });
+        queryClient.invalidateQueries({ queryKey: ["connection-status", profile.id] });
       }
     },
   });
 
-  const recommend = useMutation({
-    mutationFn: () => recommendationsApi.create(user.id, { comment: recommendComment }),
+  const createRecommendationMutation = useMutation({
+    mutationFn: () => recommendationApi.create(profile.id, { comment: recommendationComment }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["recommendations", user.id] });
-      setRecommendOpen(false);
-      setRecommendComment("");
+      queryClient.invalidateQueries({ queryKey: ["recommendations", profile.id] });
+      setIsRecommendationDialogOpen(false);
+      setRecommendationComment("");
     },
   });
 
   const handleFileSelect =
     (purpose: "AVATAR" | "BANNER") => (event: ChangeEvent<HTMLInputElement>) => {
-      const file = event.target.files?.[0];
-      if (!file) return;
-      setCropImageSrc(URL.createObjectURL(file));
+      const selectedFile = event.target.files?.[0];
+      if (!selectedFile) return;
+      setCropImageSource(URL.createObjectURL(selectedFile));
       setCropPurpose(purpose);
     };
 
-  const resetCrop = useCallback(() => {
-    if (cropImageSrc) URL.revokeObjectURL(cropImageSrc);
-    setCropImageSrc(null);
+  const resetCropState = useCallback(() => {
+    if (cropImageSource) URL.revokeObjectURL(cropImageSource);
+    setCropImageSource(null);
     setCropPurpose(null);
-  }, [cropImageSrc]);
+  }, [cropImageSource]);
 
   const handleCropComplete = useCallback(
-    async (blob: Blob) => {
+    async (croppedBlob: Blob) => {
       if (!cropPurpose) return;
-      const upload = cropPurpose === "AVATAR" ? avatarUpload : bannerUpload;
-      const field = cropPurpose === "AVATAR" ? "avatar" : "banner";
-      const result = await upload.upload(
-        new File([blob], "crop.jpg", { type: "image/jpeg" }),
+      const mediaUpload = cropPurpose === "AVATAR" ? avatarUpload : bannerUpload;
+      const profileField = cropPurpose === "AVATAR" ? "avatar" : "banner";
+      const uploadResult = await mediaUpload.upload(
+        new File([croppedBlob], "crop.jpg", { type: "image/jpeg" }),
         cropPurpose,
       );
-      await updateProfile.mutateAsync({ [field]: result.cdnUrl });
-      resetCrop();
+      await updateProfileMutation.mutateAsync({ [profileField]: uploadResult.cdnUrl });
+      resetCropState();
     },
-    [avatarUpload, bannerUpload, cropPurpose, resetCrop, updateProfile],
+    [avatarUpload, bannerUpload, cropPurpose, resetCropState, updateProfileMutation],
   );
 
   const handleMessage = () => {
@@ -189,29 +193,31 @@ function ProfileRoute() {
 
   const handleConnect = () => {
     if (!requireAuth()) return;
-    connect.mutate();
+    sendConnectionRequestMutation.mutate();
   };
 
-  const connectionStatus = connectionData?.status ?? null;
+  const connectionStatus = connectionStatusDetails?.status ?? null;
   const connectionLabel =
     connectionStatus === "PENDING"
       ? texts.profile.waitingResponse
       : connectionStatus === "ACCEPTED"
         ? texts.profile.connected
         : texts.profile.connect;
-  const connectionDisabled =
-    connect.isPending || connectionStatus === "ACCEPTED" || connectionStatus === "PENDING";
+  const isConnectionDisabled =
+    sendConnectionRequestMutation.isPending ||
+    connectionStatus === "ACCEPTED" ||
+    connectionStatus === "PENDING";
 
   return (
     <AppContainer>
       <div className="space-y-6">
         <ProfileHeader
-          user={user}
+          user={profile}
           isOwnProfile={isOwnProfile}
-          avatarUploading={avatarUpload.status === "uploading"}
-          bannerUploading={bannerUpload.status === "uploading"}
+          isAvatarUploading={avatarUpload.status === "uploading"}
+          isBannerUploading={bannerUpload.status === "uploading"}
           connectionLabel={connectionLabel}
-          connectionDisabled={connectionDisabled}
+          isConnectionDisabled={isConnectionDisabled}
           onAvatarSelect={handleFileSelect("AVATAR")}
           onBannerSelect={handleFileSelect("BANNER")}
           onMessage={handleMessage}
@@ -219,31 +225,31 @@ function ProfileRoute() {
         />
 
         <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
-          <ProfileMainContent user={user} posts={feedData?.items ?? []} />
+          <ProfileMainContent user={profile} posts={profileFeedResponse?.items ?? []} />
           <ProfileSidebar
-            user={user}
+            user={profile}
             isOwnProfile={isOwnProfile}
             recommendations={recommendations}
-            recommenders={recommenders}
-            ranking={rankingData ?? []}
-            recommendationOpen={recommendOpen}
-            recommendationComment={recommendComment}
-            recommendationPending={recommend.isPending}
-            onRecommendationOpenChange={setRecommendOpen}
-            onRecommendationCommentChange={setRecommendComment}
-            onRecommendationSubmit={() => recommend.mutate()}
+            recommenderProfileByUserId={recommenderProfileByUserId}
+            ranking={ranking ?? []}
+            isRecommendationDialogOpen={isRecommendationDialogOpen}
+            recommendationComment={recommendationComment}
+            isRecommendationPending={createRecommendationMutation.isPending}
+            onRecommendationDialogOpenChange={setIsRecommendationDialogOpen}
+            onRecommendationCommentChange={setRecommendationComment}
+            onRecommendationSubmit={() => createRecommendationMutation.mutate()}
           />
         </div>
       </div>
       <div className="h-4 lg:hidden" />
 
-      {cropImageSrc && cropPurpose && (
+      {cropImageSource && cropPurpose && (
         <ImageCropDialog
-          open={Boolean(cropImageSrc)}
-          onOpenChange={(open) => {
-            if (!open) resetCrop();
+          open={Boolean(cropImageSource)}
+          onOpenChange={(isOpen) => {
+            if (!isOpen) resetCropState();
           }}
-          imageSrc={cropImageSrc}
+          imageSrc={cropImageSource}
           aspect={cropPurpose === "AVATAR" ? 1 : 3}
           title={cropPurpose === "AVATAR" ? texts.profile.cropAvatar : texts.profile.cropCover}
           onCropComplete={handleCropComplete}
