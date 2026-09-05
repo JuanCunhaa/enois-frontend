@@ -3,7 +3,11 @@ import { type FormEvent, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 
-import { useEventsQuery, useFeedQuery, useNetworkSuggestionsQuery } from "@/hooks/use-feed-data";
+import {
+  useEventsQuery,
+  useFeedQuery,
+  useNetworkSuggestionsQuery,
+} from "@/hooks/use-feed-queries";
 import { feedApi, networkApi } from "@/lib/api";
 import type { PostView } from "@/lib/api";
 import { requireAuth } from "@/lib/require-auth";
@@ -32,97 +36,106 @@ export const Route = createFileRoute("/feed")({
       { name: "description", content: texts.feed.seo.description },
     ],
   }),
-  component: FeedRoute,
+  component: FeedPage,
 });
 
-function FeedRoute() {
+function FeedPage() {
   const queryClient = useQueryClient();
-  const { user: profileUser } = useAuth();
-  const [tab, setTab] = useState<string | undefined>("FOR_YOU");
-  const [draft, setDraft] = useState("");
+  const { user: currentUser } = useAuth();
+  const [activeTab, setActiveTab] = useState<string | undefined>("FOR_YOU");
+  const [postContent, setPostContent] = useState("");
   const [mentionedUserIds, setMentionedUserIds] = useState<string[]>([]);
-  const [postType, setPostType] = useState<PostView["type"]>("INSIGHT");
-  const [media, setMedia] = useState<LocalMediaItem[]>([]);
+  const [selectedPostType, setSelectedPostType] = useState<PostView["type"]>("INSIGHT");
+  const [mediaItems, setMediaItems] = useState<LocalMediaItem[]>([]);
   const [publishError, setPublishError] = useState<string | null>(null);
-  const upload = useMediaUpload();
+  const mediaUpload = useMediaUpload();
 
-  const { data: feedData, isFetching: feedLoading } = useFeedQuery(tab);
+  const { data: feedData, isFetching: isFeedLoading } = useFeedQuery(activeTab);
   const { data: suggestions } = useNetworkSuggestionsQuery(4);
   const { data: eventsData } = useEventsQuery();
 
-  const createPost = useMutation({
-    mutationFn: (data: {
+  const createPostMutation = useMutation({
+    mutationFn: (input: {
       content: string;
       type: PostView["type"];
       mediaIds?: string[];
       mentionedUserIds?: string[];
-    }) => feedApi.create(data),
+    }) => feedApi.create(input),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["feed"] }),
   });
 
-  const publishPost = async (event: FormEvent<HTMLFormElement>) => {
+  const handlePublishPost = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    const content = draft.trim();
+    const content = postContent.trim();
     if (!content) return;
 
     setPublishError(null);
     try {
-      const results =
-        media.length > 0
-          ? await upload.uploadAll(media.map((item) => ({ file: item.file })))
+      const uploadResults =
+        mediaItems.length > 0
+          ? await mediaUpload.uploadAll(mediaItems.map((mediaItem) => ({ file: mediaItem.file })))
           : [];
-      const mediaIds = results.map((result) => result.mediaId);
+      const mediaIds = uploadResults.map((result) => result.mediaId);
 
-      await createPost.mutateAsync({ content, type: postType, mediaIds, mentionedUserIds });
-      setDraft("");
+      await createPostMutation.mutateAsync({
+        content,
+        type: selectedPostType,
+        mediaIds,
+        mentionedUserIds,
+      });
+      setPostContent("");
       setMentionedUserIds([]);
-      setPostType("INSIGHT");
-      setMedia([]);
+      setSelectedPostType("INSIGHT");
+      setMediaItems([]);
     } catch (error) {
       setPublishError(error instanceof Error ? error.message : texts.feed.composer.publishError);
     }
   };
 
-  const connectSuggestion = async (userId: string) => {
-    await networkApi.connect(userId);
+  const handleConnectSuggestion = async (userId: string) => {
+    await networkApi.sendConnectionRequest(userId);
     queryClient.invalidateQueries({ queryKey: ["network", "suggestions"] });
   };
 
-  const isUploading = upload.status === "uploading";
-  const isPublishing = createPost.isPending || isUploading;
+  const isUploading = mediaUpload.status === "uploading";
+  const isPublishing = createPostMutation.isPending || isUploading;
 
   return (
     <AppContainer>
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
         <div className="min-w-0 space-y-4">
           <FeedComposer
-            profile={profileUser}
-            draft={draft}
-            postType={postType}
-            media={media}
+            currentUser={currentUser}
+            content={postContent}
+            selectedPostType={selectedPostType}
+            mediaItems={mediaItems}
             publishError={publishError}
             isUploading={isUploading}
-            uploadProgress={upload.progress}
+            uploadProgress={mediaUpload.progress}
             isPublishing={isPublishing}
-            onSubmit={publishPost}
-            onDraftChange={(value, ids) => {
-              setDraft(value);
-              setMentionedUserIds(ids);
+            onSubmit={handlePublishPost}
+            onContentChange={(value, userIds) => {
+              setPostContent(value);
+              setMentionedUserIds(userIds);
             }}
-            onPostTypeChange={setPostType}
-            onMediaSelect={(files) => setMedia((current) => appendLocalMedia(current, files))}
-            onRemoveMedia={(index) => setMedia((current) => removeLocalMedia(current, index))}
+            onPostTypeChange={setSelectedPostType}
+            onMediaFilesSelect={(files) =>
+              setMediaItems((currentItems) => appendLocalMedia(currentItems, files))
+            }
+            onMediaRemove={(index) =>
+              setMediaItems((currentItems) => removeLocalMedia(currentItems, index))
+            }
           />
 
-          <FeedTabs activeTab={tab} onChange={setTab} />
-          <FeedTimeline posts={feedData?.items ?? []} loading={feedLoading} />
+          <FeedTabs activeTab={activeTab} onTabChange={setActiveTab} />
+          <FeedTimeline posts={feedData?.items ?? []} isLoading={isFeedLoading} />
         </div>
 
         <FeedSidebar
-          profile={profileUser}
+          currentUser={currentUser}
           suggestions={suggestions ?? []}
           events={eventsData?.items ?? []}
-          onConnect={connectSuggestion}
+          onConnectSuggestion={handleConnectSuggestion}
         />
       </div>
     </AppContainer>
