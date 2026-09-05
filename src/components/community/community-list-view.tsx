@@ -22,7 +22,7 @@ export const COMMUNITY_TOPICS = [
 
 export type CommunityTopic = (typeof COMMUNITY_TOPICS)[number];
 
-export function CommunitiesHeader({ createDialog }: { createDialog: ReactNode }) {
+export function CommunityPageHeader({ createDialog }: { createDialog: ReactNode }) {
   return (
     <div className="surface-card flex flex-wrap items-center justify-between gap-3 p-4 sm:gap-4 sm:p-6">
       <div>
@@ -34,55 +34,63 @@ export function CommunitiesHeader({ createDialog }: { createDialog: ReactNode })
   );
 }
 
-export function CommunityTopicFilters({
-  selected,
-  onChange,
-}: {
-  selected: string | undefined;
+type CommunityTopicFiltersProps = {
+  selectedTopic: CommunityTopic | undefined;
   onChange: (topic?: CommunityTopic) => void;
-}) {
+};
+
+export function CommunityTopicFilters({
+  selectedTopic,
+  onChange,
+}: CommunityTopicFiltersProps) {
   return (
     <div className="flex flex-wrap gap-2">
-      <TopicButton active={!selected} onClick={() => onChange(undefined)}>
+      <CommunityTopicButton isActive={!selectedTopic} onClick={() => onChange(undefined)}>
         {texts.communities.topics.all}
-      </TopicButton>
+      </CommunityTopicButton>
       {COMMUNITY_TOPICS.map((topic) => (
-        <TopicButton key={topic} active={topic === selected} onClick={() => onChange(topic)}>
+        <CommunityTopicButton
+          key={topic}
+          isActive={topic === selectedTopic}
+          onClick={() => onChange(topic)}
+        >
           {texts.communities.topics[topic]}
-        </TopicButton>
+        </CommunityTopicButton>
       ))}
     </div>
   );
 }
 
-export function CommunitiesGrid({
-  communities,
-  pending,
-  onJoin,
-  onLeave,
-}: {
+type CommunityGridProps = {
   communities: Community[];
-  pending: boolean;
+  isMembershipPending: boolean;
   onJoin: (communityId: string) => void;
   onLeave: (communityId: string) => void;
-}) {
+};
+
+export function CommunityGrid({
+  communities,
+  isMembershipPending,
+  onJoin,
+  onLeave,
+}: CommunityGridProps) {
   const membershipMeta = {
     joined: {
       label: texts.communities.participating,
       variant: "secondary" as const,
-      run: onLeave,
+      onSelect: onLeave,
     },
     available: {
       label: texts.communities.enter,
       variant: "default" as const,
-      run: onJoin,
+      onSelect: onJoin,
     },
   };
 
   return (
     <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
       {communities.map((community) => {
-        const action = membershipMeta[community.joined ? "joined" : "available"];
+        const membershipAction = membershipMeta[community.joined ? "joined" : "available"];
         return (
           <Link
             key={community.id}
@@ -125,15 +133,15 @@ export function CommunitiesGrid({
                   </span>
                   <Button
                     size="sm"
-                    variant={action.variant}
+                    variant={membershipAction.variant}
                     className="rounded-full"
-                    disabled={pending}
+                    disabled={isMembershipPending}
                     onClick={(event) => {
                       event.preventDefault();
-                      action.run(community.id);
+                      membershipAction.onSelect(community.id);
                     }}
                   >
-                    {action.label}
+                    {membershipAction.label}
                   </Button>
                 </div>
               </div>
@@ -145,24 +153,26 @@ export function CommunitiesGrid({
   );
 }
 
-export function CommunitiesLoadMore({
-  visible,
-  loading,
-  onLoadMore,
-}: {
-  visible: boolean;
-  loading: boolean;
+type CommunityLoadMoreButtonProps = {
+  isVisible: boolean;
+  isLoading: boolean;
   onLoadMore: () => void;
-}) {
-  return visible ? (
+};
+
+export function CommunityLoadMoreButton({
+  isVisible,
+  isLoading,
+  onLoadMore,
+}: CommunityLoadMoreButtonProps) {
+  return isVisible ? (
     <div className="flex justify-center pb-8">
       <Button
         variant="outline"
         className="rounded-full"
         onClick={onLoadMore}
-        disabled={loading}
+        disabled={isLoading}
       >
-        {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : texts.communities.loadMore}
+        {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : texts.communities.loadMore}
       </Button>
     </div>
   ) : null;
@@ -176,21 +186,19 @@ export function CreateCommunityButton() {
   );
 }
 
-function TopicButton({
-  active,
-  onClick,
-  children,
-}: {
-  active: boolean;
+type CommunityTopicButtonProps = {
+  isActive: boolean;
   onClick: () => void;
   children: ReactNode;
-}) {
+};
+
+function CommunityTopicButton({ isActive, onClick, children }: CommunityTopicButtonProps) {
   return (
     <button
       type="button"
       onClick={onClick}
       className={`rounded-full border px-3.5 py-1.5 text-sm transition ${
-        active
+        isActive
           ? "border-primary bg-primary text-primary-foreground"
           : "border-border bg-card text-muted-foreground hover:text-foreground"
       }`}

@@ -3,7 +3,7 @@ import { type FormEvent, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, notFound } from "@tanstack/react-router";
 
-import { communitiesApi, feedApi } from "@/lib/api";
+import { communityApi, feedApi } from "@/lib/api";
 import { requireAuth } from "@/lib/require-auth";
 import { useAuth } from "@/lib/use-auth";
 import { texts } from "@/texts";
@@ -22,7 +22,7 @@ export const Route = createFileRoute("/comunidades/$communityId")({
   beforeLoad: requireAuth,
   loader: async ({ params }) => {
     try {
-      return await communitiesApi.get(params.communityId);
+      return await communityApi.getById(params.communityId);
     } catch {
       throw notFound();
     }
@@ -34,77 +34,77 @@ export const Route = createFileRoute("/comunidades/$communityId")({
       },
     ],
   }),
-  component: CommunityDetailRoute,
+  component: CommunityDetailPage,
 });
 
-function CommunityDetailRoute() {
+function CommunityDetailPage() {
   const queryClient = useQueryClient();
   const community = Route.useLoaderData();
   const { user: currentUser } = useAuth();
-  const [draft, setDraft] = useState("");
-  const [editOpen, setEditOpen] = useState(false);
+  const [postDraft, setPostDraft] = useState("");
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
 
-  const { data: live } = useQuery({
+  const { data: liveCommunity } = useQuery({
     queryKey: ["community", community.id],
-    queryFn: () => communitiesApi.get(community.id),
+    queryFn: () => communityApi.getById(community.id),
     initialData: community,
   });
 
-  const { data: membersData } = useQuery({
+  const { data: membersResponse } = useQuery({
     queryKey: ["community", community.id, "members"],
-    queryFn: () => communitiesApi.getMembers(community.id),
+    queryFn: () => communityApi.listMembers(community.id),
   });
 
-  const { data: feedData } = useQuery({
+  const { data: communityFeedResponse } = useQuery({
     queryKey: ["community", community.id, "feed"],
-    queryFn: () => communitiesApi.getFeed(community.id),
+    queryFn: () => communityApi.listFeed(community.id),
   });
 
-  const members = membersData?.items ?? [];
-  const posts = feedData?.items ?? [];
+  const members = membersResponse?.items ?? [];
+  const posts = communityFeedResponse?.items ?? [];
   const admins = members.filter((member) => member.role === "ADMIN");
   const isAdmin = Boolean(currentUser && admins.some((admin) => admin.userId === currentUser.id));
-  const isMember = live.joined;
+  const isMember = liveCommunity.joined;
 
-  const invalidateCommunity = () =>
+  const invalidateCommunityQuery = () =>
     queryClient.invalidateQueries({ queryKey: ["community", community.id] });
 
-  const join = useMutation({
-    mutationFn: () => communitiesApi.join(community.id),
-    onSuccess: invalidateCommunity,
+  const joinCommunityMutation = useMutation({
+    mutationFn: () => communityApi.join(community.id),
+    onSuccess: invalidateCommunityQuery,
   });
 
-  const leave = useMutation({
-    mutationFn: () => communitiesApi.leave(community.id),
-    onSuccess: invalidateCommunity,
+  const leaveCommunityMutation = useMutation({
+    mutationFn: () => communityApi.leave(community.id),
+    onSuccess: invalidateCommunityQuery,
   });
 
-  const createPost = useMutation({
+  const createCommunityPostMutation = useMutation({
     mutationFn: (content: string) =>
       feedApi.create({ type: "INSIGHT", content, communityId: community.id }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["community", community.id, "feed"] });
       queryClient.invalidateQueries({ queryKey: ["feed"] });
-      setDraft("");
+      setPostDraft("");
     },
   });
 
-  const handlePost = (event: FormEvent<HTMLFormElement>) => {
+  const handlePostSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    const content = draft.trim();
-    if (content) createPost.mutate(content);
+    const content = postDraft.trim();
+    if (content) createCommunityPostMutation.mutate(content);
   };
 
   const membershipAction = isMember
     ? {
         label: texts.communities.participating,
         variant: "secondary" as const,
-        run: () => leave.mutate(),
+        onSelect: () => leaveCommunityMutation.mutate(),
       }
     : {
         label: texts.communities.enter,
         variant: "default" as const,
-        run: () => join.mutate(),
+        onSelect: () => joinCommunityMutation.mutate(),
       };
   const emptyFeedText = isMember
     ? texts.communities.detail.emptyMember
@@ -116,24 +116,31 @@ function CommunityDetailRoute() {
         <CommunityBackLink />
 
         <CommunityHeader
-          community={live}
+          community={liveCommunity}
           admins={admins}
           isAdmin={isAdmin}
-          editOpen={editOpen}
-          editForm={<EditCommunityForm community={live} onClose={() => setEditOpen(false)} />}
+          isEditDialogOpen={isEditDialogOpen}
+          editForm={
+            <EditCommunityForm
+              community={liveCommunity}
+              onClose={() => setIsEditDialogOpen(false)}
+            />
+          }
           membershipLabel={membershipAction.label}
           membershipVariant={membershipAction.variant}
-          membershipPending={join.isPending || leave.isPending}
-          onEditOpenChange={setEditOpen}
-          onMembership={membershipAction.run}
+          isMembershipPending={
+            joinCommunityMutation.isPending || leaveCommunityMutation.isPending
+          }
+          onEditDialogOpenChange={setIsEditDialogOpen}
+          onMembership={membershipAction.onSelect}
         />
 
         {isMember && (
           <CommunityComposer
-            draft={draft}
-            pending={createPost.isPending}
-            onDraftChange={setDraft}
-            onSubmit={handlePost}
+            postDraft={postDraft}
+            isPublishing={createCommunityPostMutation.isPending}
+            onPostDraftChange={setPostDraft}
+            onSubmit={handlePostSubmit}
           />
         )}
 

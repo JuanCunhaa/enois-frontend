@@ -36,12 +36,12 @@ type CommunityHeaderProps = {
   community: Community;
   admins: CommunityMember[];
   isAdmin: boolean;
-  editOpen: boolean;
+  isEditDialogOpen: boolean;
   editForm: ReactNode;
   membershipLabel: string;
   membershipVariant: "default" | "secondary";
-  membershipPending: boolean;
-  onEditOpenChange: (open: boolean) => void;
+  isMembershipPending: boolean;
+  onEditDialogOpenChange: (isOpen: boolean) => void;
   onMembership: () => void;
 };
 
@@ -49,12 +49,12 @@ export function CommunityHeader({
   community,
   admins,
   isAdmin,
-  editOpen,
+  isEditDialogOpen,
   editForm,
   membershipLabel,
   membershipVariant,
-  membershipPending,
-  onEditOpenChange,
+  isMembershipPending,
+  onEditDialogOpenChange,
   onMembership,
 }: CommunityHeaderProps) {
   return (
@@ -104,7 +104,7 @@ export function CommunityHeader({
 
           <div className="flex items-center gap-2">
             {isAdmin && (
-              <Dialog open={editOpen} onOpenChange={onEditOpenChange}>
+              <Dialog open={isEditDialogOpen} onOpenChange={onEditDialogOpenChange}>
                 <DialogTrigger asChild>
                   <Button variant="outline" className="rounded-full gap-1.5">
                     <Settings className="h-4 w-4" /> {texts.communities.detail.edit}
@@ -121,7 +121,7 @@ export function CommunityHeader({
             <Button
               className="shrink-0 rounded-full"
               variant={membershipVariant}
-              disabled={membershipPending}
+              disabled={isMembershipPending}
               onClick={onMembership}
             >
               {membershipLabel}
@@ -134,23 +134,23 @@ export function CommunityHeader({
 }
 
 type CommunityComposerProps = {
-  draft: string;
-  pending: boolean;
-  onDraftChange: (value: string) => void;
+  postDraft: string;
+  isPublishing: boolean;
+  onPostDraftChange: (postDraft: string) => void;
   onSubmit: FormEventHandler<HTMLFormElement>;
 };
 
 export function CommunityComposer({
-  draft,
-  pending,
-  onDraftChange,
+  postDraft,
+  isPublishing,
+  onPostDraftChange,
   onSubmit,
 }: CommunityComposerProps) {
   return (
     <form onSubmit={onSubmit} className="surface-card p-5">
       <Textarea
-        value={draft}
-        onChange={(event) => onDraftChange(event.target.value)}
+        value={postDraft}
+        onChange={(event) => onPostDraftChange(event.target.value)}
         placeholder={texts.communities.detail.composerPlaceholder}
         className="min-h-20 resize-none rounded-2xl border-border bg-muted/40 text-sm"
         maxLength={1024}
@@ -159,10 +159,10 @@ export function CommunityComposer({
         <Button
           size="sm"
           className="rounded-full gap-1.5"
-          disabled={!draft.trim() || pending}
+          disabled={!postDraft.trim() || isPublishing}
         >
           <Send className="h-4 w-4" />
-          {pending ? texts.common.publishing : texts.common.publish}
+          {isPublishing ? texts.common.publishing : texts.common.publish}
         </Button>
       </div>
     </form>
