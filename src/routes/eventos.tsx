@@ -3,56 +3,53 @@ import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 
-import { useEventsQuery } from "@/hooks/use-feed-data";
-import { eventsApi } from "@/lib/api";
+import { useEventsQuery } from "@/hooks/use-feed-queries";
+import { eventApi } from "@/lib/api";
+import type { CreateEventInput } from "@/lib/api";
 import { requireAuth } from "@/lib/require-auth";
 import { texts } from "@/texts";
 
 import { AppContainer } from "@/components/app-container";
-import {
-  EventsGrid,
-  EventsHeader,
-  type CreateEventValues,
-} from "@/components/events/events-view";
+import { EventGrid, EventPageHeader } from "@/components/event/event-view";
 
 export const Route = createFileRoute("/eventos")({
   beforeLoad: requireAuth,
   head: () => ({ meta: [{ title: texts.events.seoTitle }] }),
-  component: EventsRoute,
+  component: EventsPage,
 });
 
-function EventsRoute() {
+function EventsPage() {
   const queryClient = useQueryClient();
-  const [createOpen, setCreateOpen] = useState(false);
-  const { data: eventsData } = useEventsQuery();
-  const events = eventsData?.items ?? [];
+  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  const { data: eventsResponse } = useEventsQuery();
+  const events = eventsResponse?.items ?? [];
 
-  const attend = useMutation({
-    mutationFn: (eventId: string) => eventsApi.attend(eventId),
+  const attendEventMutation = useMutation({
+    mutationFn: (eventId: string) => eventApi.attend(eventId),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["events"] }),
   });
 
-  const createEvent = useMutation({
-    mutationFn: (data: CreateEventValues) => eventsApi.create(data),
+  const createEventMutation = useMutation({
+    mutationFn: (input: CreateEventInput) => eventApi.create(input),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["events"] });
-      setCreateOpen(false);
+      setIsCreateDialogOpen(false);
     },
   });
 
   return (
     <AppContainer>
       <div className="space-y-6">
-        <EventsHeader
-          open={createOpen}
-          creating={createEvent.isPending}
-          onOpenChange={setCreateOpen}
-          onCreate={createEvent.mutate}
+        <EventPageHeader
+          isCreateDialogOpen={isCreateDialogOpen}
+          isCreating={createEventMutation.isPending}
+          onCreateDialogOpenChange={setIsCreateDialogOpen}
+          onCreate={createEventMutation.mutate}
         />
-        <EventsGrid
+        <EventGrid
           events={events}
-          attending={attend.isPending}
-          onAttend={attend.mutate}
+          isAttending={attendEventMutation.isPending}
+          onAttend={attendEventMutation.mutate}
         />
       </div>
     </AppContainer>
