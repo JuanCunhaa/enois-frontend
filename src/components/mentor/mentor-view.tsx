@@ -4,7 +4,7 @@ import { Link } from "@tanstack/react-router";
 
 import { Calendar, Sparkles, Star } from "lucide-react";
 
-import type { Mentor, Profile } from "@/lib/api";
+import type { CreateMentorInput, Mentor, Profile } from "@/lib/api";
 import { texts } from "@/texts";
 
 import { UserAvatar } from "@/components/user-avatar";
@@ -20,23 +20,25 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
-export type MentorListItem = {
+export type MentorListItemViewModel = {
   mentor: Mentor;
-  user?: Profile;
+  profile?: Profile;
   isOwner: boolean;
 };
 
+type MentoringHeroProps = {
+  isRegistrationDialogOpen: boolean;
+  isRegistrationPending: boolean;
+  onRegistrationDialogOpenChange: (isOpen: boolean) => void;
+  onRegister: (input: CreateMentorInput) => void;
+};
+
 export function MentoringHero({
-  registrationOpen,
-  registrationPending,
-  onRegistrationOpenChange,
+  isRegistrationDialogOpen,
+  isRegistrationPending,
+  onRegistrationDialogOpenChange,
   onRegister,
-}: {
-  registrationOpen: boolean;
-  registrationPending: boolean;
-  onRegistrationOpenChange: (open: boolean) => void;
-  onRegister: (data: { expertise: string[]; price: string }) => void;
-}) {
+}: MentoringHeroProps) {
   return (
     <div
       className="surface-card relative overflow-hidden p-5 sm:p-8"
@@ -55,7 +57,7 @@ export function MentoringHero({
           >
             {texts.mentoring.findMentor}
           </Button>
-          <Dialog open={registrationOpen} onOpenChange={onRegistrationOpenChange}>
+          <Dialog open={isRegistrationDialogOpen} onOpenChange={onRegistrationDialogOpenChange}>
             <DialogTrigger asChild>
               <Button variant="outline" className="rounded-full">
                 {texts.mentoring.becomeMentor}
@@ -65,7 +67,7 @@ export function MentoringHero({
               <DialogHeader>
                 <DialogTitle>{texts.mentoring.becomeMentorTitle}</DialogTitle>
               </DialogHeader>
-              <RegisterMentorForm onSave={onRegister} isPending={registrationPending} />
+              <RegisterMentorForm onRegister={onRegister} isPending={isRegistrationPending} />
             </DialogContent>
           </Dialog>
         </div>
@@ -74,28 +76,31 @@ export function MentoringHero({
   );
 }
 
-export function MentorsList({ items }: { items: MentorListItem[] }) {
+type MentorListProps = {
+  mentorItems: MentorListItemViewModel[];
+};
+
+export function MentorList({ mentorItems }: MentorListProps) {
   return (
     <div id="mentores-lista">
       <h2 className="text-lg font-semibold">{texts.mentoring.featured}</h2>
       <p className="text-sm text-muted-foreground">{texts.mentoring.featuredDescription}</p>
       <div className="mt-4 grid gap-4 md:grid-cols-2">
-        {items.map((item) => (
-          <MentorCard key={item.mentor.id} {...item} />
+        {mentorItems.map((mentorItem) => (
+          <MentorCard key={mentorItem.mentor.id} {...mentorItem} />
         ))}
       </div>
     </div>
   );
 }
 
-function RegisterMentorForm({
-  onSave,
-  isPending,
-}: {
-  onSave: (data: { expertise: string[]; price: string }) => void;
+type RegisterMentorFormProps = {
+  onRegister: (input: CreateMentorInput) => void;
   isPending: boolean;
-}) {
-  const [skillsText, setSkillsText] = useState("");
+};
+
+function RegisterMentorForm({ onRegister, isPending }: RegisterMentorFormProps) {
+  const [expertiseText, setExpertiseText] = useState("");
   const [price, setPrice] = useState(texts.mentoring.free);
 
   return (
@@ -103,8 +108,8 @@ function RegisterMentorForm({
       <div className="space-y-1.5">
         <Label className="text-xs text-muted-foreground">{texts.mentoring.expertise}</Label>
         <Input
-          value={skillsText}
-          onChange={(event) => setSkillsText(event.target.value)}
+          value={expertiseText}
+          onChange={(event) => setExpertiseText(event.target.value)}
           placeholder={texts.mentoring.expertisePlaceholder}
           className="h-10 border-transparent bg-muted"
         />
@@ -120,13 +125,13 @@ function RegisterMentorForm({
       </div>
       <Button
         className="w-full rounded-full"
-        disabled={!skillsText.trim() || isPending}
+        disabled={!expertiseText.trim() || isPending}
         onClick={() => {
-          const expertise = skillsText
+          const expertise = expertiseText
             .split(",")
             .map((skill) => skill.trim())
             .filter(Boolean);
-          onSave({ expertise, price: price || texts.mentoring.free });
+          onRegister({ expertise, price: price || texts.mentoring.free });
         }}
       >
         {isPending ? texts.common.saving : texts.common.save}
@@ -135,23 +140,17 @@ function RegisterMentorForm({
   );
 }
 
-function MentorCard({
-  mentor,
-  user,
-  isOwner,
-}: {
-  mentor: Mentor;
-  user?: Profile;
-  isOwner: boolean;
-}) {
+type MentorCardProps = MentorListItemViewModel;
+
+function MentorCard({ mentor, profile, isOwner }: MentorCardProps) {
   return (
     <article className="surface-card mx-auto w-full max-w-5xl space-y-4 p-5">
       <header className="flex flex-wrap">
         <div className="md:col-span-3">
           <div className="flex h-full items-start justify-center overflow-hidden">
             <UserAvatar
-              src={user?.avatar}
-              alt={user?.name ?? texts.mentoring.mentorFallback}
+              src={profile?.avatar}
+              alt={profile?.name ?? texts.mentoring.mentorFallback}
               className="h-14 w-14 shrink-0"
             />
           </div>
@@ -160,12 +159,12 @@ function MentorCard({
         <div className="flex-1 space-y-4 overflow-hidden px-4 md:col-span-6">
           <Link
             to="/perfil/$username"
-            params={{ username: user?.username ?? mentor.userId }}
+            params={{ username: profile?.username ?? mentor.userId }}
             className="m-0 block truncate font-semibold hover:underline"
           >
-            {user?.name ?? texts.mentoring.mentorFallback}
+            {profile?.name ?? texts.mentoring.mentorFallback}
           </Link>
-          <p className="line-clamp-2 text-xs text-muted-foreground">{user?.headline ?? ""}</p>
+          <p className="line-clamp-2 text-xs text-muted-foreground">{profile?.headline ?? ""}</p>
         </div>
 
         <div className="flex flex-col gap-4 text-[13px] md:col-span-3">

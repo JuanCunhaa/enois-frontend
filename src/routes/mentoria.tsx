@@ -3,7 +3,8 @@ import { useState } from "react";
 import { useMutation, useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 
-import { mentorsApi, profileApi } from "@/lib/api";
+import { mentorApi, profileApi } from "@/lib/api";
+import type { CreateMentorInput } from "@/lib/api";
 import { requireAuth } from "@/lib/require-auth";
 import { useAuth } from "@/lib/use-auth";
 import { texts } from "@/texts";
@@ -11,27 +12,27 @@ import { texts } from "@/texts";
 import { AppContainer } from "@/components/app-container";
 import {
   MentoringHero,
-  MentorsList,
-  type MentorListItem,
-} from "@/components/mentoring/mentoring-view";
+  MentorList,
+  type MentorListItemViewModel,
+} from "@/components/mentor/mentor-view";
 
 export const Route = createFileRoute("/mentoria")({
   beforeLoad: requireAuth,
   head: () => ({ meta: [{ title: texts.mentoring.seoTitle }] }),
-  component: MentoringRoute,
+  component: MentoringPage,
 });
 
-function MentoringRoute() {
+function MentoringPage() {
   const queryClient = useQueryClient();
   const { user: currentUser } = useAuth();
-  const [registrationOpen, setRegistrationOpen] = useState(false);
+  const [isRegistrationDialogOpen, setIsRegistrationDialogOpen] = useState(false);
 
-  const { data: mentorsData } = useQuery({
+  const { data: mentorsResponse } = useQuery({
     queryKey: ["mentors"],
-    queryFn: () => mentorsApi.list(),
+    queryFn: () => mentorApi.list(),
   });
 
-  const mentors = mentorsData?.items ?? [];
+  const mentors = mentorsResponse?.items ?? [];
   const mentorProfileQueries = useQueries({
     queries: mentors.map((mentor) => ({
       queryKey: ["profile", "by-id", mentor.userId],
@@ -39,17 +40,17 @@ function MentoringRoute() {
       staleTime: 60_000,
     })),
   });
-  const mentorItems: MentorListItem[] = mentors.map((mentor, index) => ({
+  const mentorItems: MentorListItemViewModel[] = mentors.map((mentor, index) => ({
     mentor,
-    user: mentorProfileQueries[index]?.data,
+    profile: mentorProfileQueries[index]?.data,
     isOwner: currentUser?.id === mentor.userId,
   }));
 
-  const createMentor = useMutation({
-    mutationFn: (data: { expertise: string[]; price: string }) => mentorsApi.create(data),
+  const createMentorMutation = useMutation({
+    mutationFn: (input: CreateMentorInput) => mentorApi.create(input),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["mentors"] });
-      setRegistrationOpen(false);
+      setIsRegistrationDialogOpen(false);
     },
   });
 
@@ -57,12 +58,12 @@ function MentoringRoute() {
     <AppContainer>
       <div className="space-y-6">
         <MentoringHero
-          registrationOpen={registrationOpen}
-          registrationPending={createMentor.isPending}
-          onRegistrationOpenChange={setRegistrationOpen}
-          onRegister={createMentor.mutate}
+          isRegistrationDialogOpen={isRegistrationDialogOpen}
+          isRegistrationPending={createMentorMutation.isPending}
+          onRegistrationDialogOpenChange={setIsRegistrationDialogOpen}
+          onRegister={createMentorMutation.mutate}
         />
-        <MentorsList items={mentorItems} />
+        <MentorList mentorItems={mentorItems} />
       </div>
     </AppContainer>
   );
