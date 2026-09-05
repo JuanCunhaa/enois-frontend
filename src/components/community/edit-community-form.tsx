@@ -4,7 +4,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 import { Camera } from "lucide-react";
 
-import { communitiesApi, type Community } from "@/lib/api";
+import { communityApi, type Community } from "@/lib/api";
 import { useMediaUpload } from "@/lib/use-media-upload";
 import { texts } from "@/texts";
 import {
@@ -19,13 +19,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 
-export function EditCommunityForm({
-  community,
-  onClose,
-}: {
+type EditCommunityFormProps = {
   community: Community;
   onClose: () => void;
-}) {
+};
+
+export function EditCommunityForm({ community, onClose }: EditCommunityFormProps) {
   const queryClient = useQueryClient();
   const [name, setName] = useState(community.name);
   const [description, setDescription] = useState(community.description);
@@ -33,12 +32,12 @@ export function EditCommunityForm({
   const [avatar, setAvatar] = useState(community.avatar ?? "");
   const coverUpload = useMediaUpload();
   const avatarUpload = useMediaUpload();
-  const coverRef = useRef<HTMLInputElement>(null);
-  const avatarRef = useRef<HTMLInputElement>(null);
-  const [cropImageSrc, setCropImageSrc] = useState<string | null>(null);
+  const coverInputRef = useRef<HTMLInputElement>(null);
+  const avatarInputRef = useRef<HTMLInputElement>(null);
+  const [cropImageSource, setCropImageSource] = useState<string | null>(null);
   const [cropPurpose, setCropPurpose] = useState<CommunityCropPurpose | null>(null);
 
-  const cropConfig = {
+  const cropConfigByPurpose = {
     COVER: {
       upload: coverUpload,
       setValue: setCover,
@@ -53,34 +52,34 @@ export function EditCommunityForm({
     },
   } as const;
 
-  const resetCrop = () => {
-    revokeObjectUrl(cropImageSrc);
-    setCropImageSrc(null);
+  const resetCropState = () => {
+    revokeObjectUrl(cropImageSource);
+    setCropImageSource(null);
     setCropPurpose(null);
   };
 
-  const handleCropComplete = async (blob: Blob) => {
+  const handleCropComplete = async (croppedBlob: Blob) => {
     if (!cropPurpose) return;
-    const config = cropConfig[cropPurpose];
-    const result = await config.upload.upload(
-      new File([blob], "crop.jpg", { type: "image/jpeg" }),
+    const cropConfig = cropConfigByPurpose[cropPurpose];
+    const uploadResult = await cropConfig.upload.upload(
+      new File([croppedBlob], "crop.jpg", { type: "image/jpeg" }),
       cropPurpose,
     );
-    config.setValue(result.cdnUrl);
-    resetCrop();
+    cropConfig.setValue(uploadResult.cdnUrl);
+    resetCropState();
   };
 
   const handleFileSelect =
     (purpose: CommunityCropPurpose) => (event: ChangeEvent<HTMLInputElement>) => {
-      const file = getFirstFile(event);
-      if (!file) return;
+      const selectedFile = getFirstFile(event);
+      if (!selectedFile) return;
       setCropPurpose(purpose);
-      setCropImageSrc(createObjectUrl(file));
+      setCropImageSource(createObjectUrl(selectedFile));
     };
 
-  const update = useMutation({
+  const updateCommunityMutation = useMutation({
     mutationFn: () =>
-      communitiesApi.update(
+      communityApi.update(
         community.id,
         buildCommunityUpdate(community, { name, description, cover, avatar }),
       ),
@@ -90,7 +89,7 @@ export function EditCommunityForm({
     },
   });
 
-  const activeCrop = cropPurpose ? cropConfig[cropPurpose] : null;
+  const activeCropConfig = cropPurpose ? cropConfigByPurpose[cropPurpose] : null;
 
   return (
     <div className="space-y-4 pt-2">
@@ -121,7 +120,7 @@ export function EditCommunityForm({
                 variant="secondary"
                 size="sm"
                 className="rounded-full gap-1.5"
-                onClick={() => coverRef.current?.click()}
+                onClick={() => coverInputRef.current?.click()}
               >
                 <Camera className="h-4 w-4" /> {texts.communities.detail.change}
               </Button>
@@ -141,13 +140,13 @@ export function EditCommunityForm({
             type="button"
             variant="outline"
             className="w-full rounded-full gap-1.5"
-            onClick={() => coverRef.current?.click()}
+            onClick={() => coverInputRef.current?.click()}
           >
             <Camera className="h-4 w-4" /> {texts.communities.detail.addCover}
           </Button>
         )}
         <input
-          ref={coverRef}
+          ref={coverInputRef}
           type="file"
           accept="image/*"
           className="hidden"
@@ -170,7 +169,7 @@ export function EditCommunityForm({
                 variant="outline"
                 size="sm"
                 className="rounded-full gap-1.5"
-                onClick={() => avatarRef.current?.click()}
+                onClick={() => avatarInputRef.current?.click()}
               >
                 <Camera className="h-4 w-4" /> {texts.communities.detail.change}
               </Button>
@@ -190,13 +189,13 @@ export function EditCommunityForm({
             type="button"
             variant="outline"
             className="w-full rounded-full gap-1.5"
-            onClick={() => avatarRef.current?.click()}
+            onClick={() => avatarInputRef.current?.click()}
           >
             <Camera className="h-4 w-4" /> {texts.communities.detail.addAvatar}
           </Button>
         )}
         <input
-          ref={avatarRef}
+          ref={avatarInputRef}
           type="file"
           accept="image/*"
           className="hidden"
@@ -206,21 +205,21 @@ export function EditCommunityForm({
 
       <Button
         className="w-full rounded-full"
-        disabled={!name.trim() || update.isPending}
-        onClick={() => update.mutate()}
+        disabled={!name.trim() || updateCommunityMutation.isPending}
+        onClick={() => updateCommunityMutation.mutate()}
       >
-        {update.isPending ? texts.common.saving : texts.common.save}
+        {updateCommunityMutation.isPending ? texts.common.saving : texts.common.save}
       </Button>
 
-      {cropImageSrc && cropPurpose && activeCrop && (
+      {cropImageSource && cropPurpose && activeCropConfig && (
         <ImageCropDialog
           open
-          onOpenChange={(open) => {
-            if (!open) resetCrop();
+          onOpenChange={(isOpen) => {
+            if (!isOpen) resetCropState();
           }}
-          imageSrc={cropImageSrc}
-          aspect={activeCrop.aspect}
-          title={activeCrop.title}
+          imageSrc={cropImageSource}
+          aspect={activeCropConfig.aspect}
+          title={activeCropConfig.title}
           onCropComplete={handleCropComplete}
         />
       )}

@@ -87,7 +87,7 @@ function CommunitiesPage() {
         <CommunityPageHeader
           createDialog={
             <CreateCommunityDialog
-              open={isCreateDialogOpen}
+              isOpen={isCreateDialogOpen}
               onOpenChange={setIsCreateDialogOpen}
             />
           }
