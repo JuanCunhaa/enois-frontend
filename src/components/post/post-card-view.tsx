@@ -20,47 +20,47 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
-const typeMeta: Record<
+const postTypeMeta: Record<
   PostView["type"],
-  { label: string; className: string; classAvatar: string }
+  { label: string; className: string; avatarClassName: string }
 > = {
   INSIGHT: {
     label: texts.posts.types.insight,
     className: "bg-highlight-insight text-highlight-insight-text",
-    classAvatar: "bg-user-insight text-highlight-insight-text",
+    avatarClassName: "bg-user-insight text-highlight-insight-text",
   },
   QUESTION: {
     label: texts.posts.types.question,
     className: "bg-secondary/30 text-secondary-foreground",
-    classAvatar: "",
+    avatarClassName: "",
   },
   PROJECT: {
     label: texts.posts.types.project,
     className: "bg-highlight-project text-highlight-project-text",
-    classAvatar: "bg-user-project text-user-project-text",
+    avatarClassName: "bg-user-project text-user-project-text",
   },
   OPPORTUNITY: {
     label: texts.posts.types.opportunity,
     className: "bg-opportunity/20 text-opportunity-foreground",
-    classAvatar: "",
+    avatarClassName: "",
   },
   ARTICLE: {
     label: texts.posts.types.article,
     className: "bg-highlight-article text-highlight-article-text",
-    classAvatar: "bg-user-article text-user-article-text",
+    avatarClassName: "bg-user-article text-user-article-text",
   },
 };
 
 type PostCardViewProps = {
   post: PostView;
   currentUser: Profile | null | undefined;
-  counters: PostView["counters"];
-  reactionStatus: string | null;
-  saved: boolean;
-  showComments: boolean;
+  postCounters: PostView["counters"];
+  currentUserReaction: string | null;
+  isSaved: boolean;
+  isCommentsVisible: boolean;
   comments: CommentView[];
   rootComments: CommentView[];
-  draft: string;
+  commentDraft: string;
   reactionSummary: ReactNode;
   onReaction: (type: ReactionType) => void;
   onOpenReactions: () => void;
@@ -70,20 +70,20 @@ type PostCardViewProps = {
   onSave: () => void;
   onDeleteComment: (commentId: string) => void;
   onReply: (comment: CommentView) => void;
-  onDraftChange: (value: string, mentionedUserIds: string[]) => void;
+  onCommentDraftChange: (draftValue: string, mentionedUserIds: string[]) => void;
   onSubmitComment: FormEventHandler<HTMLFormElement>;
 };
 
 export function PostCardView({
   post,
   currentUser,
-  counters,
-  reactionStatus,
-  saved,
-  showComments,
+  postCounters,
+  currentUserReaction,
+  isSaved,
+  isCommentsVisible,
   comments,
   rootComments,
-  draft,
+  commentDraft,
   reactionSummary,
   onReaction,
   onOpenReactions,
@@ -93,25 +93,25 @@ export function PostCardView({
   onSave,
   onDeleteComment,
   onReply,
-  onDraftChange,
+  onCommentDraftChange,
   onSubmitComment,
 }: PostCardViewProps) {
-  const meta = typeMeta[post.type] ?? typeMeta.INSIGHT;
+  const postTypeMetaConfig = postTypeMeta[post.type] ?? postTypeMeta.INSIGHT;
 
   return (
     <article className="min-w-0 rounded-2xl border border-border-soft bg-surface-card p-4 transition sm:p-5">
       <header className="flex items-start justify-between gap-3">
-        <AuthorInfo
+        <PostAuthorInfo
           authorUsername={post.authorUsername}
           authorName={post.authorName}
           authorAvatar={post.authorAvatar}
           createdAt={post.createdAt}
-          fallbackClassName={meta.classAvatar}
+          fallbackClassName={postTypeMetaConfig.avatarClassName}
         />
         <span
-          className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium ${meta.className}`}
+          className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium ${postTypeMetaConfig.className}`}
         >
-          {meta.label}
+          {postTypeMetaConfig.label}
         </span>
       </header>
 
@@ -149,16 +149,18 @@ export function PostCardView({
               <button
                 type="button"
                 className={`flex items-center gap-1.5 rounded-lg px-2 py-1.5 transition hover:bg-muted hover:text-foreground ${
-                  reactionStatus ? "text-primary" : ""
+                  currentUserReaction ? "text-primary" : ""
                 }`}
                 title={
-                  reactionStatus
-                    ? texts.posts.reactions.reactedWith(REACTION_EMOJIS[reactionStatus])
+                  currentUserReaction
+                    ? texts.posts.reactions.reactedWith(REACTION_EMOJIS[currentUserReaction])
                     : texts.posts.reactions.react
                 }
               >
-                {reactionStatus ? (
-                  <span className="text-base leading-none">{REACTION_EMOJIS[reactionStatus]}</span>
+                {currentUserReaction ? (
+                  <span className="text-base leading-none">
+                    {REACTION_EMOJIS[currentUserReaction]}
+                  </span>
                 ) : (
                   <Heart className="h-4 w-4" />
                 )}
@@ -171,15 +173,17 @@ export function PostCardView({
             >
               <div className="flex gap-1">
                 {(Object.entries(REACTION_EMOJIS) as [ReactionType, string][]).map(
-                  ([type, emoji]) => (
+                  ([reactionType, emoji]) => (
                     <button
-                      key={type}
+                      key={reactionType}
                       type="button"
-                      onClick={() => onReaction(type)}
+                      onClick={() => onReaction(reactionType)}
                       className={`rounded-lg px-2 py-1 text-xl transition hover:bg-muted ${
-                        reactionStatus === type ? "bg-muted ring-1 ring-primary" : ""
+                        currentUserReaction === reactionType
+                          ? "bg-muted ring-1 ring-primary"
+                          : ""
                       }`}
-                      title={type.toLowerCase()}
+                      title={reactionType.toLowerCase()}
                     >
                       {emoji}
                     </button>
@@ -194,14 +198,14 @@ export function PostCardView({
             onClick={onOpenReactions}
             className="flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-xs tabular-nums text-muted-foreground transition hover:bg-muted hover:text-foreground"
           >
-            {counters.reactions}
+            {postCounters.reactions}
           </button>
           <button
             type="button"
             onClick={onToggleComments}
             className="flex items-center gap-1.5 rounded-lg px-2 py-1.5 transition hover:bg-muted hover:text-foreground"
           >
-            <MessageSquare className="h-4 w-4" /> {counters.comments}
+            <MessageSquare className="h-4 w-4" /> {postCounters.comments}
           </button>
           <button
             type="button"
@@ -223,14 +227,14 @@ export function PostCardView({
           type="button"
           onClick={onSave}
           className={`flex items-center gap-1.5 rounded-lg px-2 py-1.5 transition hover:bg-muted hover:text-foreground ${
-            saved ? "text-primary" : ""
+            isSaved ? "text-primary" : ""
           }`}
         >
-          <Bookmark className="h-4 w-4" /> {counters.saves}
+          <Bookmark className="h-4 w-4" /> {postCounters.saves}
         </button>
       </footer>
 
-      {showComments && (
+      {isCommentsVisible && (
         <section className="mt-4 border-t border-border-soft pt-4">
           <div className="space-y-3">
             {rootComments.map((comment) => {
@@ -276,8 +280,8 @@ export function PostCardView({
             />
             <div className="flex flex-1 items-center gap-2 rounded-full border border-border-soft bg-surface-1 py-1.5 pl-4 pr-1.5">
               <MentionTextarea
-                value={draft}
-                onChange={onDraftChange}
+                value={commentDraft}
+                onChange={onCommentDraftChange}
                 placeholder={texts.posts.comments.placeholder}
                 className="h-6 min-h-6 flex-1 resize-none border-0 bg-transparent p-0 text-[13px] font-light outline-none"
                 maxLength={280}
@@ -286,7 +290,7 @@ export function PostCardView({
                 type="submit"
                 size="icon"
                 className="h-7 w-7 shrink-0 rounded-full"
-                disabled={!draft.trim()}
+                disabled={!commentDraft.trim()}
                 aria-label={texts.posts.comments.send}
               >
                 <Send className="h-3.5 w-3.5" />
@@ -299,19 +303,21 @@ export function PostCardView({
   );
 }
 
-function AuthorInfo({
-  authorUsername,
-  authorName,
-  authorAvatar,
-  createdAt,
-  fallbackClassName,
-}: {
+type PostAuthorInfoProps = {
   authorUsername: string;
   authorName: string;
   authorAvatar: string | null;
   createdAt: string;
   fallbackClassName?: string;
-}) {
+};
+
+function PostAuthorInfo({
+  authorUsername,
+  authorName,
+  authorAvatar,
+  createdAt,
+  fallbackClassName,
+}: PostAuthorInfoProps) {
   return (
     <div className="flex items-start gap-3">
       <Link to="/perfil/$username" params={{ username: authorUsername }}>

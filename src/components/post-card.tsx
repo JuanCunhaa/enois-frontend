@@ -151,13 +151,13 @@ export function PostCard({ post }: PostCardProps) {
       <PostCardView
         post={post}
         currentUser={currentUser}
-        counters={postCounters}
-        reactionStatus={currentUserReaction}
-        saved={isSaved}
-        showComments={isCommentsVisible}
+        postCounters={postCounters}
+        currentUserReaction={currentUserReaction}
+        isSaved={isSaved}
+        isCommentsVisible={isCommentsVisible}
         comments={localComments}
         rootComments={getRootComments(localComments)}
-        draft={commentDraft}
+        commentDraft={commentDraft}
         reactionSummary={
           <ReactionsSummary postId={post.id} currentUserReaction={currentUserReaction} />
         }
@@ -169,7 +169,7 @@ export function PostCard({ post }: PostCardProps) {
         onSave={handleSave}
         onDeleteComment={handleDeleteComment}
         onReply={handleReplyStart}
-        onDraftChange={(draftValue, mentionedUserIds) => {
+        onCommentDraftChange={(draftValue, mentionedUserIds) => {
           setCommentDraft(draftValue);
           setCommentMentionUserIds(mentionedUserIds);
         }}
