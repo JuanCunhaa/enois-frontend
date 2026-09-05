@@ -13,7 +13,7 @@ import {
 
 export type EditProfileTab = "info" | "experiences" | "education" | "certifications";
 
-const tabs: Array<{ key: EditProfileTab; label: string }> = [
+const editProfileTabs: Array<{ key: EditProfileTab; label: string }> = [
   { key: "info", label: texts.profile.edit.tabs.info },
   { key: "experiences", label: texts.profile.edit.tabs.experiences },
   { key: "education", label: texts.profile.edit.tabs.education },
@@ -21,28 +21,28 @@ const tabs: Array<{ key: EditProfileTab; label: string }> = [
 ];
 
 type EditProfileShellProps = {
-  open: boolean;
+  isOpen: boolean;
   trigger: ReactNode;
-  tab: EditProfileTab;
-  saving: boolean;
+  activeTab: EditProfileTab;
+  isSaving: boolean;
   children: ReactNode;
-  onOpenChange: (open: boolean) => void;
+  onOpenChange: (isOpen: boolean) => void;
   onTabChange: (tab: EditProfileTab) => void;
   onSave: () => void;
 };
 
 export function EditProfileShell({
-  open,
+  isOpen,
   trigger,
-  tab,
-  saving,
+  activeTab,
+  isSaving,
   children,
   onOpenChange,
   onTabChange,
   onSave,
 }: EditProfileShellProps) {
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={isOpen} onOpenChange={onOpenChange}>
       <DialogTrigger asChild>{trigger}</DialogTrigger>
       <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto p-0">
         <DialogHeader className="sticky top-0 z-10 border-b border-border-soft bg-surface-card px-6 pb-4 pt-6">
@@ -54,24 +54,24 @@ export function EditProfileShell({
               <Button size="sm" variant="outline" onClick={() => onOpenChange(false)}>
                 {texts.common.cancel}
               </Button>
-              <Button size="sm" onClick={onSave} disabled={saving}>
-                {saving ? texts.common.saving : texts.common.save}
+              <Button size="sm" onClick={onSave} disabled={isSaving}>
+                {isSaving ? texts.common.saving : texts.common.save}
               </Button>
             </div>
           </div>
           <div className="mt-4 flex gap-1 overflow-x-auto text-sm">
-            {tabs.map((item) => (
+            {editProfileTabs.map((tabItem) => (
               <button
-                key={item.key}
+                key={tabItem.key}
                 type="button"
-                onClick={() => onTabChange(item.key)}
+                onClick={() => onTabChange(tabItem.key)}
                 className={`shrink-0 rounded-full px-3 py-1.5 text-[12px] font-light transition ${
-                  tab === item.key
+                  activeTab === tabItem.key
                     ? "bg-surface-2 text-primary"
                     : "text-text-subtle hover:bg-surface-3 hover:text-text-strong"
                 }`}
               >
-                {item.label}
+                {tabItem.label}
               </button>
             ))}
           </div>

@@ -12,7 +12,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 
-export type ProfileSubField = {
+export type ProfileEntryField = {
   key: string;
   label: string;
   required?: boolean;
@@ -20,64 +20,65 @@ export type ProfileSubField = {
   type?: string;
 };
 
-type ProfileSubListProps<T extends { id: string }, TData extends object> = {
+type ProfileEntryListProps<T extends { id: string }, TInput extends object> = {
   items: T[];
-  fields: ProfileSubField[];
+  fields: ProfileEntryField[];
   currentlyHereKey?: string;
-  createApi: (data: TData) => Promise<T>;
-  updateApi: (id: string, data: TData) => Promise<T>;
-  deleteApi: (id: string) => Promise<void>;
+  onCreate: (input: TInput) => Promise<T>;
+  onUpdate: (itemId: string, input: TInput) => Promise<T>;
+  onRemove: (itemId: string) => Promise<void>;
   queryKey: readonly unknown[];
   emptyMessage: string;
-  newItem: Record<string, string>;
+  initialValues: Record<string, string>;
 };
 
-export function ProfileSubList<T extends { id: string }, TData extends object>({
+export function ProfileEntryList<T extends { id: string }, TInput extends object>({
   items,
   fields,
   currentlyHereKey,
-  createApi,
-  updateApi,
-  deleteApi,
+  onCreate,
+  onUpdate,
+  onRemove,
   queryKey,
   emptyMessage,
-  newItem,
-}: ProfileSubListProps<T, TData>) {
+  initialValues,
+}: ProfileEntryListProps<T, TInput>) {
   const queryClient = useQueryClient();
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [form, setForm] = useState<Record<string, string>>({ ...newItem });
-  const [currentlyHere, setCurrentlyHere] = useState(false);
+  const [editingItemId, setEditingItemId] = useState<string | null>(null);
+  const [formValues, setFormValues] = useState<Record<string, string>>({ ...initialValues });
+  const [isCurrentlyHere, setIsCurrentlyHere] = useState(false);
 
-  const resetForm = () => {
-    setEditingId(null);
-    setForm({ ...newItem });
-    setCurrentlyHere(false);
+  const resetFormState = () => {
+    setEditingItemId(null);
+    setFormValues({ ...initialValues });
+    setIsCurrentlyHere(false);
   };
 
-  const create = useMutation({
-    mutationFn: (data: TData) => createApi(data),
+  const createItemMutation = useMutation({
+    mutationFn: (input: TInput) => onCreate(input),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey });
-      resetForm();
+      resetFormState();
     },
   });
 
-  const update = useMutation({
-    mutationFn: ({ id, data }: { id: string; data: TData }) => updateApi(id, data),
+  const updateItemMutation = useMutation({
+    mutationFn: ({ itemId, input }: { itemId: string; input: TInput }) =>
+      onUpdate(itemId, input),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey });
-      resetForm();
+      resetFormState();
     },
   });
 
-  const remove = useMutation({
-    mutationFn: (id: string) => deleteApi(id),
+  const removeItemMutation = useMutation({
+    mutationFn: (itemId: string) => onRemove(itemId),
     onSuccess: () => queryClient.invalidateQueries({ queryKey }),
   });
 
-  const startEdit = (item: T) => {
-    setEditingId(item.id);
-    setForm(
+  const handleEditStart = (item: T) => {
+    setEditingItemId(item.id);
+    setFormValues(
       Object.fromEntries(
         fields.map((field) => [
           field.key,
@@ -86,39 +87,42 @@ export function ProfileSubList<T extends { id: string }, TData extends object>({
       ),
     );
     if (currentlyHereKey) {
-      setCurrentlyHere(Boolean((item as Record<string, unknown>)[currentlyHereKey]));
+      setIsCurrentlyHere(Boolean((item as Record<string, unknown>)[currentlyHereKey]));
     }
   };
 
   const handleSubmit = async () => {
-    const data: Record<string, unknown> = { ...form };
+    const inputValues: Record<string, unknown> = { ...formValues };
     if (currentlyHereKey) {
-      data[currentlyHereKey] = currentlyHere;
-      if (currentlyHere) data.endDate = null;
+      inputValues[currentlyHereKey] = isCurrentlyHere;
+      if (isCurrentlyHere) inputValues.endDate = null;
     }
 
-    const typedData = data as unknown as TData;
-    if (editingId && editingId !== "__new__") {
-      await update.mutateAsync({ id: editingId, data: typedData });
+    const input = inputValues as unknown as TInput;
+    if (editingItemId && editingItemId !== "__new__") {
+      await updateItemMutation.mutateAsync({ itemId: editingItemId, input });
       return;
     }
-    await create.mutateAsync(typedData);
+    await createItemMutation.mutateAsync(input);
   };
 
-  const isPending = create.isPending || update.isPending;
-  const showForm = editingId !== null;
+  const isSubmitting = createItemMutation.isPending || updateItemMutation.isPending;
+  const isFormVisible = editingItemId !== null;
 
   return (
     <div className="space-y-4">
-      {showForm ? (
+      {isFormVisible ? (
         <div className="space-y-3 rounded-xl border border-border-soft p-4">
           {fields.map((field) => (
-            <Field key={field.key} label={field.label}>
+            <ProfileEntryFieldControl key={field.key} label={field.label}>
               {field.multiline ? (
                 <Textarea
-                  value={form[field.key] ?? ""}
+                  value={formValues[field.key] ?? ""}
                   onChange={(event) =>
-                    setForm((current) => ({ ...current, [field.key]: event.target.value }))
+                    setFormValues((currentValues) => ({
+                      ...currentValues,
+                      [field.key]: event.target.value,
+                    }))
                   }
                   rows={2}
                   className="h-10 border-border-soft bg-surface-1"
@@ -126,28 +130,31 @@ export function ProfileSubList<T extends { id: string }, TData extends object>({
               ) : (
                 <Input
                   type={field.type ?? "text"}
-                  value={form[field.key] ?? ""}
+                  value={formValues[field.key] ?? ""}
                   onChange={(event) =>
-                    setForm((current) => ({ ...current, [field.key]: event.target.value }))
+                    setFormValues((currentValues) => ({
+                      ...currentValues,
+                      [field.key]: event.target.value,
+                    }))
                   }
                   className="h-10 border-border-soft bg-surface-1"
                 />
               )}
-            </Field>
+            </ProfileEntryFieldControl>
           ))}
 
           {currentlyHereKey && (
             <label className="flex items-center gap-2 text-[13px] font-light text-text-strong">
-              <Switch checked={currentlyHere} onCheckedChange={setCurrentlyHere} />
+              <Switch checked={isCurrentlyHere} onCheckedChange={setIsCurrentlyHere} />
               {texts.profile.edit.currentlyHere}
             </label>
           )}
 
           <div className="flex gap-2">
-            <Button size="sm" onClick={handleSubmit} disabled={isPending}>
-              {isPending ? texts.common.saving : texts.common.save}
+            <Button size="sm" onClick={handleSubmit} disabled={isSubmitting}>
+              {isSubmitting ? texts.common.saving : texts.common.save}
             </Button>
-            <Button size="sm" variant="outline" onClick={resetForm}>
+            <Button size="sm" variant="outline" onClick={resetFormState}>
               {texts.common.cancel}
             </Button>
           </div>
@@ -173,14 +180,14 @@ export function ProfileSubList<T extends { id: string }, TData extends object>({
                   <div className="flex items-center gap-1">
                     <button
                       type="button"
-                      onClick={() => startEdit(item)}
+                      onClick={() => handleEditStart(item)}
                       className="grid h-8 w-8 place-items-center rounded-lg hover:bg-surface-2"
                     >
                       <Pencil className="h-4 w-4 text-text-subtle" />
                     </button>
                     <button
                       type="button"
-                      onClick={() => remove.mutate(item.id)}
+                      onClick={() => removeItemMutation.mutate(item.id)}
                       className="grid h-8 w-8 place-items-center rounded-lg hover:bg-surface-2 hover:text-destructive"
                     >
                       <Trash2 className="h-4 w-4" />
@@ -196,9 +203,9 @@ export function ProfileSubList<T extends { id: string }, TData extends object>({
             variant="outline"
             className="w-full gap-1.5"
             onClick={() => {
-              setEditingId("__new__");
-              setForm({ ...newItem });
-              setCurrentlyHere(false);
+              setEditingItemId("__new__");
+              setFormValues({ ...initialValues });
+              setIsCurrentlyHere(false);
             }}
           >
             <Plus className="h-4 w-4" /> {texts.common.add}
@@ -209,7 +216,12 @@ export function ProfileSubList<T extends { id: string }, TData extends object>({
   );
 }
 
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
+type ProfileEntryFieldControlProps = {
+  label: string;
+  children: React.ReactNode;
+};
+
+function ProfileEntryFieldControl({ label, children }: ProfileEntryFieldControlProps) {
   return (
     <div className="space-y-1.5">
       <Label className="text-[13px] font-light text-text-subtle">{label}</Label>

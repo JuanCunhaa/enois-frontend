@@ -24,126 +24,129 @@ export type EditProfileInfoValues = {
 };
 
 type EditProfileInfoFormProps = {
-  values: EditProfileInfoValues;
+  formValues: EditProfileInfoValues;
   usernameError: string;
   onChange: <K extends keyof EditProfileInfoValues>(
     field: K,
-    value: EditProfileInfoValues[K],
+    fieldValue: EditProfileInfoValues[K],
   ) => void;
 };
 
 export function EditProfileInfoForm({
-  values,
+  formValues,
   usernameError,
   onChange,
 }: EditProfileInfoFormProps) {
   return (
     <div className="space-y-5">
-      <Field label={texts.profile.edit.fields.name}>
+      <EditProfileField label={texts.profile.edit.fields.name}>
         <Input
-          value={values.name}
+          value={formValues.name}
           onChange={(event) => onChange("name", event.target.value)}
           className="h-10 border-border-soft bg-surface-1"
         />
-      </Field>
+      </EditProfileField>
 
-      <Field label={texts.profile.edit.fields.username} error={usernameError}>
+      <EditProfileField label={texts.profile.edit.fields.username} error={usernameError}>
         <Input
-          value={values.username}
+          value={formValues.username}
           onChange={(event) => onChange("username", event.target.value)}
           placeholder={texts.profile.edit.placeholders.username}
           className="h-10 border-border-soft bg-surface-1"
         />
-      </Field>
+      </EditProfileField>
 
-      <Field label={texts.profile.edit.fields.headline}>
+      <EditProfileField label={texts.profile.edit.fields.headline}>
         <Input
-          value={values.headline}
+          value={formValues.headline}
           onChange={(event) => onChange("headline", event.target.value)}
           placeholder={texts.profile.edit.placeholders.headline}
           className="h-10 border-border-soft bg-surface-1"
         />
-      </Field>
+      </EditProfileField>
 
-      <Field label={texts.profile.edit.fields.bio}>
+      <EditProfileField label={texts.profile.edit.fields.bio}>
         <Textarea
-          value={values.bio}
+          value={formValues.bio}
           onChange={(event) => onChange("bio", event.target.value)}
           rows={3}
           className="h-10 border-border-soft bg-surface-1 pl-9"
         />
-      </Field>
+      </EditProfileField>
 
       <div className="grid gap-4 sm:grid-cols-2">
-        <Field label={texts.profile.edit.fields.company}>
+        <EditProfileField label={texts.profile.edit.fields.company}>
           <Input
-            value={values.company}
+            value={formValues.company}
             onChange={(event) => onChange("company", event.target.value)}
             className="h-10 border-border-soft bg-surface-1"
           />
-        </Field>
-        <Field label={texts.profile.edit.fields.location}>
+        </EditProfileField>
+        <EditProfileField label={texts.profile.edit.fields.location}>
           <Input
-            value={values.location}
+            value={formValues.location}
             onChange={(event) => onChange("location", event.target.value)}
             className="h-10 border-border-soft bg-surface-1"
           />
-        </Field>
+        </EditProfileField>
       </div>
 
-      <Field label={texts.profile.edit.fields.availability}>
+      <EditProfileField label={texts.profile.edit.fields.availability}>
         <Input
-          value={values.availability}
+          value={formValues.availability}
           onChange={(event) => onChange("availability", event.target.value)}
           placeholder={texts.profile.edit.placeholders.availability}
           className="h-10 border-border-soft bg-surface-1"
         />
-      </Field>
+      </EditProfileField>
 
-      <Field label={texts.profile.edit.fields.portfolio}>
+      <EditProfileField label={texts.profile.edit.fields.portfolio}>
         <Input
-          value={values.portfolio}
+          value={formValues.portfolio}
           onChange={(event) => onChange("portfolio", event.target.value)}
           placeholder={texts.profile.edit.placeholders.portfolio}
           className="h-10 border-border-soft bg-surface-1"
         />
-      </Field>
+      </EditProfileField>
 
-      <Field label={texts.profile.edit.fields.externalLinks}>
+      <EditProfileField label={texts.profile.edit.fields.externalLinks}>
         <Textarea
-          value={values.linksText}
+          value={formValues.linksText}
           onChange={(event) => onChange("linksText", event.target.value)}
           rows={3}
           className="h-10 border-border-soft bg-surface-1"
         />
-      </Field>
+      </EditProfileField>
 
-      <Field label={texts.profile.edit.fields.skills}>
+      <EditProfileField label={texts.profile.edit.fields.skills}>
         <Input
-          value={values.skillsText}
+          value={formValues.skillsText}
           onChange={(event) => onChange("skillsText", event.target.value)}
           className="h-10 border-border-soft bg-surface-1"
         />
-      </Field>
+      </EditProfileField>
 
-      <Field label={texts.profile.edit.fields.goals}>
+      <EditProfileField label={texts.profile.edit.fields.goals}>
         <Input
-          value={values.goalsText}
+          value={formValues.goalsText}
           onChange={(event) => onChange("goalsText", event.target.value)}
           className="h-10 border-border-soft bg-surface-1"
         />
-      </Field>
+      </EditProfileField>
 
       <div className="flex items-center gap-8">
         <label className="flex items-center gap-3 text-[13px] font-light text-text-strong">
           <Switch
-            checked={values.openToWork}
-            onCheckedChange={(value) => onChange("openToWork", value)}
+            checked={formValues.openToWork}
+            onCheckedChange={(isChecked) => onChange("openToWork", isChecked)}
           />
           {texts.profile.edit.openToWork}
         </label>
         <label className="flex items-center gap-3 text-[13px] font-light text-text-strong">
-          <Switch checked={values.isMentor} onCheckedChange={(value) => onChange("isMentor", value)} />
+          <Switch
+            checked={formValues.isMentor}
+            onCheckedChange={(isChecked) => onChange("isMentor", isChecked)}
+          />
           {texts.profile.edit.mentorAvailable}
         </label>
       </div>
@@ -151,15 +154,13 @@ export function EditProfileInfoForm({
   );
 }
 
-function Field({
-  label,
-  error,
-  children,
-}: {
+type EditProfileFieldProps = {
   label: string;
   error?: string;
   children: ReactNode;
-}) {
+};
+
+function EditProfileField({ label, error, children }: EditProfileFieldProps) {
   return (
     <div className="space-y-1.5">
       <Label className="text-[13px] font-light text-text-subtle">{label}</Label>
