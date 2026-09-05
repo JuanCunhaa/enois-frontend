@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 
-import { jobsApi } from "@/lib/api";
+import { jobApi } from "@/lib/api";
 import type { Job } from "@/lib/api";
 import { requireAuth } from "@/lib/require-auth";
 import { texts } from "@/texts";
@@ -11,15 +11,15 @@ import { mergePage } from "@/utils/collections";
 
 import { AppContainer } from "@/components/app-container";
 import {
-  JobsEmpty,
-  JobsFilters,
-  JobsGrid,
-  JobsInfiniteScroll,
-  JobsLoading,
+  JobEmptyState,
+  JobFilters,
+  JobGrid,
+  JobInfiniteScroll,
+  JobLoadingIndicator,
   type JobFilterValues,
-} from "@/components/jobs/jobs-view";
+} from "@/components/job/job-view";
 
-const initialFilters: JobFilterValues = {
+const initialJobFilters: JobFilterValues = {
   query: "",
   level: "",
   location: "",
@@ -30,16 +30,16 @@ const initialFilters: JobFilterValues = {
 export const Route = createFileRoute("/vagas")({
   beforeLoad: requireAuth,
   head: () => ({ meta: [{ title: texts.jobs.seoTitle }] }),
-  component: JobsRoute,
+  component: JobsPage,
 });
 
-function JobsRoute() {
+function JobsPage() {
   const queryClient = useQueryClient();
-  const [filterValues, setFilterValues] = useState<JobFilterValues>(initialFilters);
-  const [cursor, setCursor] = useState<string | null>(null);
-  const [allJobs, setAllJobs] = useState<Job[]>([]);
+  const [filterValues, setFilterValues] = useState<JobFilterValues>(initialJobFilters);
+  const [jobsCursor, setJobsCursor] = useState<string | null>(null);
+  const [loadedJobs, setLoadedJobs] = useState<Job[]>([]);
 
-  const filters = {
+  const jobFilters = {
     query: filterValues.query || undefined,
     level: filterValues.level || undefined,
     location: filterValues.location || undefined,
@@ -47,54 +47,64 @@ function JobsRoute() {
     skills: filterValues.skills || undefined,
   };
 
-  const { data: jobsData, isFetching } = useQuery({
-    queryKey: ["jobs", filters, cursor],
-    queryFn: () => jobsApi.list({ ...filters, cursor, limit: 10 }),
+  const { data: jobsResponse, isFetching: isJobsFetching } = useQuery({
+    queryKey: ["jobs", jobFilters, jobsCursor],
+    queryFn: () => jobApi.list({ ...jobFilters, cursor: jobsCursor, limit: 10 }),
   });
 
-  const jobs = jobsData?.items ?? [];
-  const nextCursor = jobsData?.nextCursor ?? null;
-  const filtersKey = JSON.stringify(filters);
-  const previousFiltersKey = useRef(filtersKey);
+  const currentPageJobs = jobsResponse?.items ?? [];
+  const nextJobsCursor = jobsResponse?.nextCursor ?? null;
+  const jobFiltersKey = JSON.stringify(jobFilters);
+  const previousJobFiltersKey = useRef(jobFiltersKey);
 
   useEffect(() => {
-    if (previousFiltersKey.current === filtersKey) return;
-    setAllJobs([]);
-    setCursor(null);
-    previousFiltersKey.current = filtersKey;
-  }, [filtersKey]);
+    if (previousJobFiltersKey.current === jobFiltersKey) return;
+    setLoadedJobs([]);
+    setJobsCursor(null);
+    previousJobFiltersKey.current = jobFiltersKey;
+  }, [jobFiltersKey]);
 
   useEffect(() => {
-    setAllJobs((current) => mergePage(current, jobs, cursor === null));
-  }, [jobs, cursor]);
+    setLoadedJobs((currentJobs) => mergePage(currentJobs, currentPageJobs, jobsCursor === null));
+  }, [currentPageJobs, jobsCursor]);
 
-  const apply = useMutation({
-    mutationFn: (jobId: string) => jobsApi.apply(jobId),
+  const applyToJobMutation = useMutation({
+    mutationFn: (jobId: string) => jobApi.apply(jobId),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["jobs"] }),
   });
 
-  const updateFilter = (field: keyof JobFilterValues, value: string) => {
-    setFilterValues((current) => ({ ...current, [field]: value }));
+  const handleFilterChange = (field: keyof JobFilterValues, filterValue: string) => {
+    setFilterValues((currentFilters) => ({ ...currentFilters, [field]: filterValue }));
   };
 
-  const clearFilters = () => {
-    setFilterValues((current) => ({ ...initialFilters, query: current.query }));
+  const handleClearFilters = () => {
+    setFilterValues((currentFilters) => ({ ...initialJobFilters, query: currentFilters.query }));
+  };
+
+  const handleLoadMore = () => {
+    if (nextJobsCursor) setJobsCursor(nextJobsCursor);
   };
 
   return (
     <AppContainer>
       <div className="space-y-6">
-        <JobsFilters values={filterValues} onChange={updateFilter} onClear={clearFilters} />
-        <JobsGrid jobs={allJobs} applying={apply.isPending} onApply={apply.mutate} />
-        <JobsLoading visible={isFetching && allJobs.length > 0} />
-        <JobsInfiniteScroll
-          hasMore={Boolean(nextCursor)}
-          loading={isFetching}
-          onLoadMore={() => {
-            if (nextCursor) setCursor(nextCursor);
-          }}
+        <JobFilters
+          values={filterValues}
+          onChange={handleFilterChange}
+          onClear={handleClearFilters}
         />
-        <JobsEmpty visible={!isFetching && allJobs.length === 0} />
+        <JobGrid
+          jobs={loadedJobs}
+          isApplying={applyToJobMutation.isPending}
+          onApply={applyToJobMutation.mutate}
+        />
+        <JobLoadingIndicator isVisible={isJobsFetching && loadedJobs.length > 0} />
+        <JobInfiniteScroll
+          hasMore={Boolean(nextJobsCursor)}
+          isLoading={isJobsFetching}
+          onLoadMore={handleLoadMore}
+        />
+        <JobEmptyState isVisible={!isJobsFetching && loadedJobs.length === 0} />
       </div>
     </AppContainer>
   );

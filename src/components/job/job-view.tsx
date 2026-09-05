@@ -4,7 +4,7 @@ import { Briefcase, Loader2, MapPin, Sparkles, X } from "lucide-react";
 
 import type { Job } from "@/lib/api";
 import { texts } from "@/texts";
-import { humanizeEnumLabel } from "@/utils/string";
+import { formatEnumLabel } from "@/utils/string";
 import { formatJobPostedAt } from "@/utils/time";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -12,8 +12,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
-const LEVELS = ["JUNIOR", "MID", "SENIOR", "LEAD"] as const;
-const TYPES = ["CLT", "PJ", "FREELANCE", "INTERN"] as const;
+const JOB_LEVELS = ["JUNIOR", "MID", "SENIOR", "LEAD"] as const;
+const JOB_TYPES = ["CLT", "PJ", "FREELANCE", "INTERN"] as const;
 
 export type JobFilterValues = {
   query: string;
@@ -23,13 +23,13 @@ export type JobFilterValues = {
   skills: string;
 };
 
-type JobsFiltersProps = {
+type JobFiltersProps = {
   values: JobFilterValues;
-  onChange: (field: keyof JobFilterValues, value: string) => void;
+  onChange: (field: keyof JobFilterValues, filterValue: string) => void;
   onClear: () => void;
 };
 
-export function JobsFilters({ values, onChange, onClear }: JobsFiltersProps) {
+export function JobFilters({ values, onChange, onClear }: JobFiltersProps) {
   const hasFilters = [values.level, values.location, values.type, values.skills].some(Boolean);
 
   return (
@@ -51,24 +51,24 @@ export function JobsFilters({ values, onChange, onClear }: JobsFiltersProps) {
         )}
       </div>
 
-      <FilterGroup
+      <JobFilterGroup
         label={texts.jobs.filters.level}
-        values={LEVELS}
-        selected={values.level}
-        onChange={(value) => onChange("level", value)}
-        getLabel={humanizeEnumLabel}
+        values={JOB_LEVELS}
+        selectedValue={values.level}
+        onChange={(filterValue) => onChange("level", filterValue)}
+        getLabel={formatEnumLabel}
       />
-      <FilterGroup
+      <JobFilterGroup
         label={texts.jobs.filters.location}
         values={texts.jobs.filters.locations}
-        selected={values.location}
-        onChange={(value) => onChange("location", value)}
+        selectedValue={values.location}
+        onChange={(filterValue) => onChange("location", filterValue)}
       />
-      <FilterGroup
+      <JobFilterGroup
         label={texts.jobs.filters.type}
-        values={TYPES}
-        selected={values.type}
-        onChange={(value) => onChange("type", value)}
+        values={JOB_TYPES}
+        selectedValue={values.type}
+        onChange={(filterValue) => onChange("type", filterValue)}
       />
 
       <div className="mt-4 flex flex-wrap gap-3">
@@ -92,76 +92,70 @@ export function JobsFilters({ values, onChange, onClear }: JobsFiltersProps) {
   );
 }
 
-export function JobsGrid({
-  jobs,
-  applying,
-  onApply,
-}: {
+type JobGridProps = {
   jobs: Job[];
-  applying: boolean;
+  isApplying: boolean;
   onApply: (jobId: string) => void;
-}) {
+};
+
+export function JobGrid({ jobs, isApplying, onApply }: JobGridProps) {
   return (
     <div className="grid gap-4 md:grid-cols-2">
       {jobs.map((job) => (
-        <JobCard key={job.id} job={job} applying={applying} onApply={onApply} />
+        <JobCard key={job.id} job={job} isApplying={isApplying} onApply={onApply} />
       ))}
     </div>
   );
 }
 
-export function JobsLoading({ visible }: { visible: boolean }) {
-  return visible ? (
+export function JobLoadingIndicator({ isVisible }: { isVisible: boolean }) {
+  return isVisible ? (
     <div className="flex justify-center py-6">
       <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
     </div>
   ) : null;
 }
 
-export function JobsEmpty({ visible }: { visible: boolean }) {
-  return visible ? (
+export function JobEmptyState({ isVisible }: { isVisible: boolean }) {
+  return isVisible ? (
     <p className="py-12 text-center text-sm text-muted-foreground">{texts.jobs.empty}</p>
   ) : null;
 }
 
-export function JobsInfiniteScroll({
-  hasMore,
-  loading,
-  onLoadMore,
-}: {
+type JobInfiniteScrollProps = {
   hasMore: boolean;
-  loading: boolean;
+  isLoading: boolean;
   onLoadMore: () => void;
-}) {
+};
+
+export function JobInfiniteScroll({ hasMore, isLoading, onLoadMore }: JobInfiniteScrollProps) {
   const sentinelRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    const element = sentinelRef.current;
-    if (!element || !hasMore) return;
+    const sentinelElement = sentinelRef.current;
+    if (!sentinelElement || !hasMore) return;
 
     const observer = new IntersectionObserver(
       ([entry]) => {
-        if (entry.isIntersecting && !loading) onLoadMore();
+        if (entry.isIntersecting && !isLoading) onLoadMore();
       },
       { rootMargin: "300px" },
     );
 
-    observer.observe(element);
+    observer.observe(sentinelElement);
     return () => observer.disconnect();
-  }, [hasMore, loading, onLoadMore]);
+  }, [hasMore, isLoading, onLoadMore]);
 
   return hasMore ? <div ref={sentinelRef} className="h-4" /> : null;
 }
 
-function JobCard({
-  job,
-  applying,
-  onApply,
-}: {
+type JobCardProps = {
   job: Job;
-  applying: boolean;
+  isApplying: boolean;
   onApply: (jobId: string) => void;
-}) {
+};
+
+function JobCard({ job, isApplying, onApply }: JobCardProps) {
   return (
     <article className="surface-card flex flex-col p-5">
       <div className="flex items-start gap-3">
@@ -214,7 +208,7 @@ function JobCard({
           <Button
             size="sm"
             className="rounded-full"
-            disabled={applying}
+            disabled={isApplying}
             onClick={() => onApply(job.id)}
           >
             {texts.jobs.apply}
@@ -225,35 +219,37 @@ function JobCard({
   );
 }
 
-function FilterGroup({
-  label,
-  values,
-  selected,
-  onChange,
-  getLabel = (value) => value,
-}: {
+type JobFilterGroupProps = {
   label: string;
   values: readonly string[];
-  selected: string;
-  onChange: (value: string) => void;
-  getLabel?: (value: string) => string;
-}) {
+  selectedValue: string;
+  onChange: (filterValue: string) => void;
+  getLabel?: (filterValue: string) => string;
+};
+
+function JobFilterGroup({
+  label,
+  values,
+  selectedValue,
+  onChange,
+  getLabel = (filterValue) => filterValue,
+}: JobFilterGroupProps) {
   return (
     <div className="mt-3 flex flex-wrap gap-2 first:mt-4">
       <div className="flex flex-wrap items-center gap-1.5">
         <span className="mr-1 text-xs font-medium text-muted-foreground">{label}</span>
-        {values.map((value) => (
+        {values.map((filterValue) => (
           <button
-            key={value}
+            key={filterValue}
             type="button"
-            onClick={() => onChange(selected === value ? "" : value)}
+            onClick={() => onChange(selectedValue === filterValue ? "" : filterValue)}
             className={`rounded-full border px-3 py-1 text-xs transition ${
-              selected === value
+              selectedValue === filterValue
                 ? "border-primary bg-primary text-primary-foreground"
                 : "border-border bg-card text-muted-foreground hover:text-foreground"
             }`}
           >
-            {getLabel(value)}
+            {getLabel(filterValue)}
           </button>
         ))}
       </div>
