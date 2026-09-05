@@ -6,8 +6,10 @@ import { z } from "zod";
 
 import { texts } from "@/texts";
 
-import { ForgotPasswordDialog, SignInForm, SignUpForm } from "@/components/auth/auth-forms";
 import { AuthPageLayout, type AuthTab } from "@/components/auth/auth-page-layout";
+import { ForgotPasswordDialog } from "@/components/auth/forgot-password-dialog";
+import { SignInForm } from "@/components/auth/sign-in-form";
+import { SignUpForm } from "@/components/auth/sign-up-form";
 
 const authSearchSchema = z.object({
   tab: z.enum(["login", "signup"]).optional().default("signup"),
