@@ -1,14 +1,21 @@
 import { useState } from "react";
 
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-
-import { REACTION_EMOJIS, reactionsApi } from "@/lib/api";
+import { REACTION_EMOJIS, reactionApi } from "@/lib/api";
 import type { CommentView, ReactionType } from "@/lib/api";
 import { texts } from "@/texts";
 import { formatRelativeTime } from "@/utils/time";
 
 import { RichText } from "@/components/rich-text";
 import { UserAvatar } from "@/components/user-avatar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+
+type PostCommentItemProps = {
+  comment: CommentView;
+  replyingTo?: string;
+  currentUserId?: string;
+  onDelete?: (commentId: string) => void;
+  onReply?: (comment: CommentView) => void;
+};
 
 export function PostCommentItem({
   comment,
@@ -16,25 +23,19 @@ export function PostCommentItem({
   currentUserId,
   onDelete,
   onReply,
-}: {
-  comment: CommentView;
-  replyingTo?: string;
-  currentUserId?: string;
-  onDelete?: (commentId: string) => void;
-  onReply?: (comment: CommentView) => void;
-}) {
+}: PostCommentItemProps) {
   const isOwner = currentUserId === comment.authorId;
-  const [commentReaction, setCommentReaction] = useState<string | null>(null);
+  const [currentUserReaction, setCurrentUserReaction] = useState<string | null>(null);
 
   const handleCommentReaction = async (type: ReactionType) => {
     try {
-      const removing = commentReaction === type;
-      if (removing) {
-        await reactionsApi.removeCommentReaction(comment.postId, comment.id);
+      const isRemovingReaction = currentUserReaction === type;
+      if (isRemovingReaction) {
+        await reactionApi.removeCommentReaction(comment.postId, comment.id);
       } else {
-        await reactionsApi.reactComment(comment.postId, comment.id, type);
+        await reactionApi.reactToComment(comment.postId, comment.id, type);
       }
-      setCommentReaction(removing ? null : type);
+      setCurrentUserReaction(isRemovingReaction ? null : type);
     } catch {
       // Keep the existing silent-failure behavior.
     }
@@ -77,7 +78,9 @@ export function PostCommentItem({
           <Popover>
             <PopoverTrigger asChild>
               <button type="button" className="transition-colors hover:text-primary">
-                {commentReaction ? REACTION_EMOJIS[commentReaction] : texts.posts.reactions.react}
+                {currentUserReaction
+                  ? REACTION_EMOJIS[currentUserReaction]
+                  : texts.posts.reactions.react}
               </button>
             </PopoverTrigger>
             <PopoverContent
@@ -93,7 +96,7 @@ export function PostCommentItem({
                       type="button"
                       onClick={() => handleCommentReaction(type)}
                       className={`rounded-lg px-2 py-1 text-lg transition hover:bg-surface-2 ${
-                        commentReaction === type ? "bg-surface-2 ring-1 ring-primary" : ""
+                        currentUserReaction === type ? "bg-surface-2 ring-1 ring-primary" : ""
                       }`}
                     >
                       {emoji}

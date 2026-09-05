@@ -2,7 +2,7 @@ import { type FormEvent, useEffect, useState } from "react";
 
 import { useQuery } from "@tanstack/react-query";
 
-import { commentsApi, feedApi, reactionsApi } from "@/lib/api";
+import { commentApi, feedApi, reactionApi } from "@/lib/api";
 import type { CommentView, PostView, ReactionType } from "@/lib/api";
 import { useAuth } from "@/lib/use-auth";
 import { createReplyTarget, getRootComments } from "@/utils/comments";
@@ -11,52 +11,61 @@ import { PostCardView } from "@/components/post/post-card-view";
 import { ReactionsDialog, ReactionsSummary } from "@/components/post/post-reactions";
 import { PostReportDialog } from "@/components/post/post-report-dialog";
 
-export function PostCard({ post }: { post: PostView }) {
+type PostCardProps = {
+  post: PostView;
+};
+
+export function PostCard({ post }: PostCardProps) {
   const { user: currentUser } = useAuth();
-  const [showComments, setShowComments] = useState(false);
-  const [draft, setDraft] = useState("");
-  const [commentMentions, setCommentMentions] = useState<string[]>([]);
-  const [replyToId, setReplyToId] = useState<string | null>(null);
+  const [isCommentsVisible, setIsCommentsVisible] = useState(false);
+  const [commentDraft, setCommentDraft] = useState("");
+  const [commentMentionUserIds, setCommentMentionUserIds] = useState<string[]>([]);
+  const [replyToCommentId, setReplyToCommentId] = useState<string | null>(null);
   const [localComments, setLocalComments] = useState<CommentView[]>([]);
   const [postCounters, setPostCounters] = useState(post.counters);
-  const [reactionStatus, setReactionStatus] = useState<string | null>(
+  const [currentUserReaction, setCurrentUserReaction] = useState<string | null>(
     post.currentUserReaction ?? null,
   );
-  const [saved, setSaved] = useState(false);
-  const [showReactions, setShowReactions] = useState(false);
-  const [showReport, setShowReport] = useState(false);
+  const [isSaved, setIsSaved] = useState(false);
+  const [isReactionsDialogOpen, setIsReactionsDialogOpen] = useState(false);
+  const [isReportDialogOpen, setIsReportDialogOpen] = useState(false);
 
   useEffect(() => {
-    setReactionStatus(post.currentUserReaction ?? null);
+    setCurrentUserReaction(post.currentUserReaction ?? null);
   }, [post.currentUserReaction]);
 
-  const { data: savedData } = useQuery({
+  const { data: savedPostsResponse } = useQuery({
     queryKey: ["saved-posts"],
     queryFn: () => feedApi.listSaved(),
     staleTime: 30_000,
   });
 
   useEffect(() => {
-    if (savedData) setSaved(savedData.items.some((savedPost) => savedPost.id === post.id));
-  }, [savedData, post.id]);
+    if (savedPostsResponse) {
+      setIsSaved(savedPostsResponse.items.some((savedPost) => savedPost.id === post.id));
+    }
+  }, [savedPostsResponse, post.id]);
 
-  const submitComment = async (event: FormEvent<HTMLFormElement>) => {
+  const handleCommentSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    const content = draft.trim();
+    const content = commentDraft.trim();
     if (!content) return;
 
     try {
-      const newComment = await commentsApi.create(
+      const newComment = await commentApi.create(
         post.id,
         content,
-        replyToId,
-        commentMentions,
+        replyToCommentId,
+        commentMentionUserIds,
       );
-      setLocalComments((current) => [...current, newComment]);
-      setPostCounters((counters) => ({ ...counters, comments: counters.comments + 1 }));
-      setDraft("");
-      setCommentMentions([]);
-      setReplyToId(null);
+      setLocalComments((currentComments) => [...currentComments, newComment]);
+      setPostCounters((currentCounters) => ({
+        ...currentCounters,
+        comments: currentCounters.comments + 1,
+      }));
+      setCommentDraft("");
+      setCommentMentionUserIds([]);
+      setReplyToCommentId(null);
     } catch {
       // Keep the existing silent-failure behavior.
     }
@@ -64,12 +73,14 @@ export function PostCard({ post }: { post: PostView }) {
 
   const handleReaction = async (type: ReactionType) => {
     try {
-      const removing = reactionStatus === type;
-      const result = removing
-        ? await reactionsApi.removeReaction(post.id)
-        : await reactionsApi.react(post.id, type);
-      setReactionStatus(removing ? null : type);
-      if ("counters" in result && result.counters) setPostCounters(result.counters);
+      const isRemovingReaction = currentUserReaction === type;
+      const reactionResponse = isRemovingReaction
+        ? await reactionApi.removePostReaction(post.id)
+        : await reactionApi.reactToPost(post.id, type);
+      setCurrentUserReaction(isRemovingReaction ? null : type);
+      if ("counters" in reactionResponse && reactionResponse.counters) {
+        setPostCounters(reactionResponse.counters);
+      }
     } catch {
       // Keep the existing silent-failure behavior.
     }
@@ -77,11 +88,11 @@ export function PostCard({ post }: { post: PostView }) {
 
   const handleSave = async () => {
     try {
-      const result = saved
-        ? await reactionsApi.removeSave(post.id)
-        : await reactionsApi.save(post.id);
-      setSaved((value) => !value);
-      setPostCounters(result.counters);
+      const saveResponse = isSaved
+        ? await reactionApi.unsavePost(post.id)
+        : await reactionApi.savePost(post.id);
+      setIsSaved((currentIsSaved) => !currentIsSaved);
+      setPostCounters(saveResponse.counters);
     } catch {
       // Keep the existing silent-failure behavior.
     }
@@ -89,12 +100,12 @@ export function PostCard({ post }: { post: PostView }) {
 
   const handleShare = async () => {
     try {
-      const result = await reactionsApi.share(post.id);
-      setPostCounters(result.counters);
-      const url = `${window.location.origin}/feed/${post.id}`;
+      const shareResponse = await reactionApi.sharePost(post.id);
+      setPostCounters(shareResponse.counters);
+      const postUrl = `${window.location.origin}/feed/${post.id}`;
       const shareAction = navigator.share
-        ? () => navigator.share({ url })
-        : () => navigator.clipboard.writeText(url);
+        ? () => navigator.share({ url: postUrl })
+        : () => navigator.clipboard.writeText(postUrl);
       await shareAction();
     } catch {
       // Keep the existing silent-failure behavior.
@@ -103,31 +114,36 @@ export function PostCard({ post }: { post: PostView }) {
 
   const handleDeleteComment = async (commentId: string) => {
     try {
-      await commentsApi.remove(post.id, commentId);
-      setLocalComments((comments) => comments.filter((comment) => comment.id !== commentId));
-      setPostCounters((counters) => ({ ...counters, comments: counters.comments - 1 }));
+      await commentApi.remove(post.id, commentId);
+      setLocalComments((currentComments) =>
+        currentComments.filter((comment) => comment.id !== commentId),
+      );
+      setPostCounters((currentCounters) => ({
+        ...currentCounters,
+        comments: currentCounters.comments - 1,
+      }));
     } catch {
       // Keep the existing silent-failure behavior.
     }
   };
 
-  const loadComments = async () => {
-    if (!showComments) {
+  const handleToggleComments = async () => {
+    if (!isCommentsVisible) {
       try {
-        const data = await commentsApi.list(post.id);
-        setLocalComments(data.items);
+        const commentsResponse = await commentApi.list(post.id);
+        setLocalComments(commentsResponse.items);
       } catch {
         // Keep the existing silent-failure behavior.
       }
     }
-    setShowComments((value) => !value);
+    setIsCommentsVisible((isVisible) => !isVisible);
   };
 
-  const startReply = async (comment: CommentView) => {
-    const target = await createReplyTarget(comment);
-    setDraft(target.draft);
-    setCommentMentions(target.mentionedUserIds);
-    setReplyToId(target.replyToId);
+  const handleReplyStart = async (comment: CommentView) => {
+    const replyTarget = await createReplyTarget(comment);
+    setCommentDraft(replyTarget.draft);
+    setCommentMentionUserIds(replyTarget.mentionedUserIds);
+    setReplyToCommentId(replyTarget.replyToId);
   };
 
   return (
@@ -136,38 +152,42 @@ export function PostCard({ post }: { post: PostView }) {
         post={post}
         currentUser={currentUser}
         counters={postCounters}
-        reactionStatus={reactionStatus}
-        saved={saved}
-        showComments={showComments}
+        reactionStatus={currentUserReaction}
+        saved={isSaved}
+        showComments={isCommentsVisible}
         comments={localComments}
         rootComments={getRootComments(localComments)}
-        draft={draft}
+        draft={commentDraft}
         reactionSummary={
-          <ReactionsSummary postId={post.id} reactionStatus={reactionStatus} />
+          <ReactionsSummary postId={post.id} currentUserReaction={currentUserReaction} />
         }
         onReaction={handleReaction}
-        onOpenReactions={() => setShowReactions(true)}
-        onToggleComments={loadComments}
+        onOpenReactions={() => setIsReactionsDialogOpen(true)}
+        onToggleComments={handleToggleComments}
         onShare={handleShare}
-        onReport={() => setShowReport(true)}
+        onReport={() => setIsReportDialogOpen(true)}
         onSave={handleSave}
         onDeleteComment={handleDeleteComment}
-        onReply={startReply}
-        onDraftChange={(value, mentionedUserIds) => {
-          setDraft(value);
-          setCommentMentions(mentionedUserIds);
+        onReply={handleReplyStart}
+        onDraftChange={(draftValue, mentionedUserIds) => {
+          setCommentDraft(draftValue);
+          setCommentMentionUserIds(mentionedUserIds);
         }}
-        onSubmitComment={submitComment}
+        onSubmitComment={handleCommentSubmit}
       />
 
       <ReactionsDialog
         postId={post.id}
-        currentUserReaction={reactionStatus}
+        currentUserReaction={currentUserReaction}
         currentUserId={currentUser?.id}
-        open={showReactions}
-        onOpenChange={setShowReactions}
+        isOpen={isReactionsDialogOpen}
+        onOpenChange={setIsReactionsDialogOpen}
       />
-      <PostReportDialog postId={post.id} open={showReport} onOpenChange={setShowReport} />
+      <PostReportDialog
+        postId={post.id}
+        isOpen={isReportDialogOpen}
+        onOpenChange={setIsReportDialogOpen}
+      />
     </>
   );
 }
