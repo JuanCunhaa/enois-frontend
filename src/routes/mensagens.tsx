@@ -9,11 +9,9 @@ import { texts } from "@/texts";
 import { getOtherParticipantId, sortMessagesByTime } from "@/utils/messages";
 
 import { AppContainer } from "@/components/app-container";
-import {
-  MessageSidebar,
-  MessageThread,
-  type ConversationListItemViewModel,
-} from "@/components/message/message-view";
+import { MessageSidebar } from "@/components/message/message-sidebar";
+import { MessageThread } from "@/components/message/message-thread";
+import type { ConversationListItemViewModel } from "@/components/message/message-types";
 
 export const Route = createFileRoute("/mensagens")({
   head: () => ({ meta: [{ title: texts.messages.seoTitle }] }),

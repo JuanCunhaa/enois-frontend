@@ -1,0 +1,80 @@
+import { Search } from "lucide-react";
+
+import type { Conversation, NetworkUser } from "@/lib/api";
+import { texts } from "@/texts";
+
+import { ContactSearch } from "@/components/message/contact-search";
+import { ConversationList } from "@/components/message/conversation-list";
+import type { ConversationListItemViewModel } from "@/components/message/message-types";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+
+type MessageSidebarProps = {
+  conversations: ConversationListItemViewModel[];
+  activeConversationId: string | null;
+  currentUserId: string;
+  isContactSearchVisible: boolean;
+  searchQuery: string;
+  contactSearchResults: NetworkUser[];
+  onToggleContactSearch: () => void;
+  onSearchQueryChange: (query: string) => void;
+  onCreateConversation: (userId: string) => void;
+  onSelectConversation: (conversation: Conversation) => void;
+};
+
+export function MessageSidebar({
+  conversations,
+  activeConversationId,
+  currentUserId,
+  isContactSearchVisible,
+  searchQuery,
+  contactSearchResults,
+  onToggleContactSearch,
+  onSearchQueryChange,
+  onCreateConversation,
+  onSelectConversation,
+}: MessageSidebarProps) {
+  return (
+    <div
+      className={`flex flex-col border-r border-border ${activeConversationId ? "hidden md:flex" : "flex"}`}
+    >
+      <div className="border-b border-border p-4">
+        <div className="mb-3 flex items-center justify-between">
+          <h1 className="text-lg font-semibold">{texts.messages.title}</h1>
+          <Button
+            size="sm"
+            variant="outline"
+            className="rounded-full"
+            onClick={onToggleContactSearch}
+          >
+            {isContactSearchVisible ? texts.messages.back : texts.messages.new}
+          </Button>
+        </div>
+
+        {isContactSearchVisible ? (
+          <ContactSearch
+            searchQuery={searchQuery}
+            searchResults={contactSearchResults}
+            onSearchQueryChange={onSearchQueryChange}
+            onSelectUser={onCreateConversation}
+          />
+        ) : (
+          <div className="relative">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              placeholder={texts.messages.searchConversations}
+              className="h-9 rounded-full bg-muted pl-9"
+            />
+          </div>
+        )}
+      </div>
+
+      <ConversationList
+        conversations={conversations}
+        activeConversationId={activeConversationId}
+        currentUserId={currentUserId}
+        onSelectConversation={onSelectConversation}
+      />
+    </div>
+  );
+}
