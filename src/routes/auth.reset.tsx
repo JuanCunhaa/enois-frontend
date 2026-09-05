@@ -12,56 +12,57 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
-const searchSchema = z.object({ token: z.string().optional() });
+const resetPasswordSearchSchema = z.object({ token: z.string().optional() });
 
 export const Route = createFileRoute("/auth/reset")({
-  validateSearch: searchSchema,
+  validateSearch: resetPasswordSearchSchema,
   head: () => ({
     meta: [
       { title: texts.auth.seo.resetTitle },
       { name: "description", content: texts.auth.seo.resetDescription },
     ],
   }),
-  component: ResetPassword,
+  component: ResetPasswordPage,
 });
 
-const resetSchema = z.object({
+const resetPasswordSchema = z.object({
   password: z.string().min(8, texts.auth.validation.passwordMin).max(128),
 });
 
-function ResetPassword() {
-  const search = Route.useSearch();
+function ResetPasswordPage() {
+  const { token = "" } = Route.useSearch();
   const navigate = useNavigate();
-  const token = search.token ?? "";
-  const [errors, setErrors] = useState<Record<string, string>>({});
-  const [loading, setLoading] = useState(false);
-  const [show, setShow] = useState(false);
-  const [done, setDone] = useState(false);
+  const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isPasswordVisible, setIsPasswordVisible] = useState(false);
+  const [isResetComplete, setIsResetComplete] = useState(false);
 
-  const submit = async (e: FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    const fd = new FormData(e.currentTarget);
-    const parsed = resetSchema.safeParse(Object.fromEntries(fd));
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const formData = new FormData(event.currentTarget);
+    const parsed = resetPasswordSchema.safeParse(Object.fromEntries(formData));
     if (!parsed.success) {
-      const next: Record<string, string> = {};
-      for (const issue of parsed.error.issues) next[issue.path[0] as string] = issue.message;
-      setErrors(next);
+      const nextValidationErrors: Record<string, string> = {};
+      for (const issue of parsed.error.issues) {
+        nextValidationErrors[issue.path[0] as string] = issue.message;
+      }
+      setValidationErrors(nextValidationErrors);
       return;
     }
     if (!token) {
-      setErrors({ form: texts.auth.reset.invalidLink });
+      setValidationErrors({ form: texts.auth.reset.invalidLink });
       return;
     }
-    setErrors({});
-    setLoading(true);
+    setValidationErrors({});
+    setIsSubmitting(true);
     try {
       await authApi.resetPassword(token, parsed.data.password);
-      setDone(true);
-    } catch (err) {
-      if (err instanceof ApiError) setErrors({ form: err.message });
-      else setErrors({ form: texts.errors.unexpected });
+      setIsResetComplete(true);
+    } catch (error) {
+      if (error instanceof ApiError) setValidationErrors({ form: error.message });
+      else setValidationErrors({ form: texts.errors.unexpected });
     } finally {
-      setLoading(false);
+      setIsSubmitting(false);
     }
   };
 
@@ -71,15 +72,22 @@ function ResetPassword() {
         className="relative hidden flex-col justify-between overflow-hidden p-10 text-primary-foreground lg:flex"
         style={{ background: "var(--gradient-primary)" }}
       >
-        <div aria-hidden className="absolute -right-20 -top-20 h-96 w-96 rounded-full bg-primary-foreground/10 blur-3xl" />
-        <div aria-hidden className="absolute -bottom-32 -left-20 h-96 w-96 rounded-full bg-primary-foreground/10 blur-3xl" />
+        <div
+          aria-hidden
+          className="absolute -right-20 -top-20 h-96 w-96 rounded-full bg-primary-foreground/10 blur-3xl"
+        />
+        <div
+          aria-hidden
+          className="absolute -bottom-32 -left-20 h-96 w-96 rounded-full bg-primary-foreground/10 blur-3xl"
+        />
 
         <Link to="/" className="relative flex items-center gap-2">
           <div className="grid h-9 w-9 place-items-center rounded-xl bg-primary-foreground/20 backdrop-blur">
             <Sparkles className="h-4 w-4" />
           </div>
           <span className="text-lg font-semibold tracking-tight">
-            {texts.brand.prefix}<span className="gradient-text">{texts.brand.accent}</span>
+            {texts.brand.prefix}
+            <span className="gradient-text">{texts.brand.accent}</span>
           </span>
         </Link>
 
@@ -87,7 +95,9 @@ function ResetPassword() {
           <p className="text-sm font-medium uppercase tracking-wider text-primary-foreground/80">
             {texts.auth.hero.eyebrow}
           </p>
-          <h2 className="mt-3 text-4xl font-semibold leading-tight tracking-tight">{texts.auth.hero.quote}</h2>
+          <h2 className="mt-3 text-4xl font-semibold leading-tight tracking-tight">
+            {texts.auth.hero.quote}
+          </h2>
           <div className="mt-6 flex items-center gap-3">
             <div className="h-10 w-10 rounded-full bg-primary-foreground/25" />
             <div>
@@ -117,17 +127,22 @@ function ResetPassword() {
               <Sparkles className="h-4 w-4" />
             </div>
             <span className="font-semibold tracking-tight">
-              {texts.brand.prefix}<span className="gradient-text">{texts.brand.accent}</span>
+              {texts.brand.prefix}
+              <span className="gradient-text">{texts.brand.accent}</span>
             </span>
           </Link>
         </div>
 
         <div className="mx-auto flex w-full max-w-md flex-1 flex-col justify-center py-10">
-          {done ? (
+          {isResetComplete ? (
             <div className="text-center">
               <CheckCircle2 className="mx-auto h-12 w-12 text-primary" />
-              <h1 className="mt-4 text-2xl font-semibold tracking-tight">{texts.auth.reset.successTitle}</h1>
-              <p className="mt-2 text-sm text-muted-foreground">{texts.auth.reset.successDescription}</p>
+              <h1 className="mt-4 text-2xl font-semibold tracking-tight">
+                {texts.auth.reset.successTitle}
+              </h1>
+              <p className="mt-2 text-sm text-muted-foreground">
+                {texts.auth.reset.successDescription}
+              </p>
               <Button
                 className="mt-6 w-full gap-2 rounded-full"
                 onClick={() => navigate({ to: "/entrar", search: { tab: "login" } })}
@@ -140,13 +155,13 @@ function ResetPassword() {
               <h1 className="text-2xl font-semibold tracking-tight">{texts.auth.reset.title}</h1>
               <p className="mt-1 text-sm text-muted-foreground">{texts.auth.reset.description}</p>
 
-              <form onSubmit={submit} className="mt-6 space-y-4" noValidate>
+              <form onSubmit={handleSubmit} className="mt-6 space-y-4" noValidate>
                 <div className="space-y-1.5">
                   <Label className="text-sm font-medium">{texts.auth.fields.newPassword}</Label>
                   <div className="relative">
                     <Input
                       name="password"
-                      type={show ? "text" : "password"}
+                      type={isPasswordVisible ? "text" : "password"}
                       placeholder={texts.auth.placeholders.newPassword}
                       autoComplete="new-password"
                       required
@@ -154,21 +169,35 @@ function ResetPassword() {
                     />
                     <button
                       type="button"
-                      onClick={() => setShow((s) => !s)}
+                      onClick={() => setIsPasswordVisible((isVisible) => !isVisible)}
                       className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 text-muted-foreground hover:text-foreground"
-                      aria-label={show ? texts.auth.password.hide : texts.auth.password.show}
+                      aria-label={
+                        isPasswordVisible ? texts.auth.password.hide : texts.auth.password.show
+                      }
                     >
-                      {show ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      {isPasswordVisible ? (
+                        <EyeOff className="h-4 w-4" />
+                      ) : (
+                        <Eye className="h-4 w-4" />
+                      )}
                     </button>
                   </div>
-                  {errors.password && <p className="text-xs text-destructive">{errors.password}</p>}
+                  {validationErrors.password && (
+                    <p className="text-xs text-destructive">{validationErrors.password}</p>
+                  )}
                 </div>
 
-                {errors.form && (
-                  <p className="rounded-xl bg-destructive/10 px-4 py-2 text-sm text-destructive">{errors.form}</p>
+                {validationErrors.form && (
+                  <p className="rounded-xl bg-destructive/10 px-4 py-2 text-sm text-destructive">
+                    {validationErrors.form}
+                  </p>
                 )}
-                <Button type="submit" className="w-full gap-2 rounded-full" disabled={loading}>
-                  {loading ? (
+                <Button
+                  type="submit"
+                  className="w-full gap-2 rounded-full"
+                  disabled={isSubmitting}
+                >
+                  {isSubmitting ? (
                     <Loader2 className="h-4 w-4 animate-spin" />
                   ) : (
                     <>
@@ -180,7 +209,11 @@ function ResetPassword() {
 
               <p className="mt-6 text-center text-xs text-muted-foreground">
                 {texts.auth.reset.remembered}{" "}
-                <Link to="/entrar" search={{ tab: "login" }} className="text-primary hover:underline">
+                <Link
+                  to="/entrar"
+                  search={{ tab: "login" }}
+                  className="text-primary hover:underline"
+                >
                   {texts.common.enter}
                 </Link>
               </p>

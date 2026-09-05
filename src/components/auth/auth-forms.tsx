@@ -16,12 +16,12 @@ import { Label } from "@/components/ui/label";
 
 type OAuthProvider = "GOOGLE" | "APPLE";
 
-const loginSchema = z.object({
+const signInSchema = z.object({
   email: z.string().trim().email(texts.auth.validation.invalidEmail).max(255),
   password: z.string().min(6, texts.auth.validation.loginPasswordMin).max(128),
 });
 
-const signupSchema = z.object({
+const signUpSchema = z.object({
   name: z.string().trim().min(2, texts.auth.validation.signupNameMin).max(80),
   email: z.string().trim().email(texts.auth.validation.invalidEmail).max(255),
   password: z.string().min(8, texts.auth.validation.passwordMin).max(128),
@@ -35,34 +35,38 @@ const oauthProviders: Record<
   APPLE: { name: "Apple", label: texts.auth.social.apple, Icon: AppleIcon },
 };
 
-export function SignupForm({ onDone }: { onDone: () => void }) {
-  const [errors, setErrors] = useState<Record<string, string>>({});
-  const [formError, setFormError] = useState<unknown>(null);
-  const [loading, setLoading] = useState(false);
-  const [show, setShow] = useState(false);
+type SignUpFormProps = {
+  onAuthenticated: () => void;
+};
 
-  const submit = async (event: FormEvent<HTMLFormElement>) => {
+export function SignUpForm({ onAuthenticated }: SignUpFormProps) {
+  const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
+  const [formError, setFormError] = useState<unknown>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isPasswordVisible, setIsPasswordVisible] = useState(false);
+
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    const parsed = signupSchema.safeParse(Object.fromEntries(new FormData(event.currentTarget)));
+    const parsed = signUpSchema.safeParse(Object.fromEntries(new FormData(event.currentTarget)));
 
     if (!parsed.success) {
-      setErrors(mapValidationErrors(parsed.error.issues));
+      setValidationErrors(mapValidationErrors(parsed.error.issues));
       return;
     }
 
-    setErrors({});
+    setValidationErrors({});
     setFormError(null);
-    setLoading(true);
+    setIsSubmitting(true);
     clearSession();
 
     try {
-      const result = await authApi.signup(parsed.data);
-      storeAuthenticatedSession(result);
-      onDone();
+      const authResponse = await authApi.signUp(parsed.data);
+      storeAuthenticatedSession(authResponse);
+      onAuthenticated();
     } catch (error) {
       setFormError(error);
     } finally {
-      setLoading(false);
+      setIsSubmitting(false);
     }
   };
 
@@ -72,12 +76,12 @@ export function SignupForm({ onDone }: { onDone: () => void }) {
       <p className="mt-1 text-sm text-muted-foreground">{texts.auth.signup.subtitle}</p>
 
       <div className="mt-6">
-        <SocialButtons />
-        <Divider />
+        <OAuthButtons />
+        <AuthDivider />
       </div>
 
-      <form onSubmit={submit} className="space-y-4" noValidate>
-        <Field label={texts.auth.fields.fullName} error={errors.name}>
+      <form onSubmit={handleSubmit} className="space-y-4" noValidate>
+        <AuthField label={texts.auth.fields.fullName} error={validationErrors.name}>
           <Input
             name="name"
             placeholder={texts.auth.placeholders.name}
@@ -85,8 +89,8 @@ export function SignupForm({ onDone }: { onDone: () => void }) {
             required
             maxLength={80}
           />
-        </Field>
-        <Field label={texts.auth.fields.email} error={errors.email}>
+        </AuthField>
+        <AuthField label={texts.auth.fields.email} error={validationErrors.email}>
           <Input
             name="email"
             type="email"
@@ -95,24 +99,27 @@ export function SignupForm({ onDone }: { onDone: () => void }) {
             required
             maxLength={255}
           />
-        </Field>
-        <Field label={texts.auth.fields.password} error={errors.password}>
+        </AuthField>
+        <AuthField label={texts.auth.fields.password} error={validationErrors.password}>
           <div className="relative">
             <Input
               name="password"
-              type={show ? "text" : "password"}
+              type={isPasswordVisible ? "text" : "password"}
               placeholder={texts.auth.placeholders.newPassword}
               autoComplete="new-password"
               required
               maxLength={128}
             />
-            <PasswordVisibilityButton show={show} onToggle={() => setShow((value) => !value)} />
+            <PasswordVisibilityButton
+              isVisible={isPasswordVisible}
+              onToggle={() => setIsPasswordVisible((isVisible) => !isVisible)}
+            />
           </div>
-        </Field>
+        </AuthField>
 
         {formError && <ErrorBanner error={formError} />}
-        <Button type="submit" className="w-full rounded-full gap-2" disabled={loading}>
-          {loading ? (
+        <Button type="submit" className="w-full rounded-full gap-2" disabled={isSubmitting}>
+          {isSubmitting ? (
             <Loader2 className="h-4 w-4 animate-spin" />
           ) : (
             <>
@@ -125,34 +132,39 @@ export function SignupForm({ onDone }: { onDone: () => void }) {
   );
 }
 
-export function LoginForm({ onDone, onForgot }: { onDone: () => void; onForgot: () => void }) {
-  const [errors, setErrors] = useState<Record<string, string>>({});
-  const [formError, setFormError] = useState<unknown>(null);
-  const [loading, setLoading] = useState(false);
-  const [show, setShow] = useState(false);
+type SignInFormProps = {
+  onAuthenticated: () => void;
+  onForgotPassword: () => void;
+};
 
-  const submit = async (event: FormEvent<HTMLFormElement>) => {
+export function SignInForm({ onAuthenticated, onForgotPassword }: SignInFormProps) {
+  const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
+  const [formError, setFormError] = useState<unknown>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isPasswordVisible, setIsPasswordVisible] = useState(false);
+
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    const parsed = loginSchema.safeParse(Object.fromEntries(new FormData(event.currentTarget)));
+    const parsed = signInSchema.safeParse(Object.fromEntries(new FormData(event.currentTarget)));
 
     if (!parsed.success) {
-      setErrors(mapValidationErrors(parsed.error.issues));
+      setValidationErrors(mapValidationErrors(parsed.error.issues));
       return;
     }
 
-    setErrors({});
+    setValidationErrors({});
     setFormError(null);
-    setLoading(true);
+    setIsSubmitting(true);
     clearSession();
 
     try {
-      const result = await authApi.login(parsed.data);
-      storeAuthenticatedSession(result);
-      onDone();
+      const authResponse = await authApi.signIn(parsed.data);
+      storeAuthenticatedSession(authResponse);
+      onAuthenticated();
     } catch (error) {
       setFormError(error);
     } finally {
-      setLoading(false);
+      setIsSubmitting(false);
     }
   };
 
@@ -162,12 +174,12 @@ export function LoginForm({ onDone, onForgot }: { onDone: () => void; onForgot: 
       <p className="mt-1 text-sm text-muted-foreground">{texts.auth.login.subtitle}</p>
 
       <div className="mt-6">
-        <SocialButtons />
-        <Divider />
+        <OAuthButtons />
+        <AuthDivider />
       </div>
 
-      <form onSubmit={submit} className="space-y-4" noValidate>
-        <Field label={texts.auth.fields.email} error={errors.email}>
+      <form onSubmit={handleSubmit} className="space-y-4" noValidate>
+        <AuthField label={texts.auth.fields.email} error={validationErrors.email}>
           <Input
             name="email"
             type="email"
@@ -176,14 +188,14 @@ export function LoginForm({ onDone, onForgot }: { onDone: () => void; onForgot: 
             required
             maxLength={255}
           />
-        </Field>
-        <Field
+        </AuthField>
+        <AuthField
           label={texts.auth.fields.password}
-          error={errors.password}
+          error={validationErrors.password}
           right={
             <button
               type="button"
-              onClick={onForgot}
+              onClick={onForgotPassword}
               className="text-xs font-medium text-primary hover:underline"
             >
               {texts.auth.password.forgot}
@@ -193,19 +205,22 @@ export function LoginForm({ onDone, onForgot }: { onDone: () => void; onForgot: 
           <div className="relative">
             <Input
               name="password"
-              type={show ? "text" : "password"}
+              type={isPasswordVisible ? "text" : "password"}
               placeholder={texts.auth.placeholders.password}
               autoComplete="current-password"
               required
               maxLength={128}
             />
-            <PasswordVisibilityButton show={show} onToggle={() => setShow((value) => !value)} />
+            <PasswordVisibilityButton
+              isVisible={isPasswordVisible}
+              onToggle={() => setIsPasswordVisible((isVisible) => !isVisible)}
+            />
           </div>
-        </Field>
+        </AuthField>
 
         {formError && <ErrorBanner error={formError} />}
-        <Button type="submit" className="w-full rounded-full gap-2" disabled={loading}>
-          {loading ? (
+        <Button type="submit" className="w-full rounded-full gap-2" disabled={isSubmitting}>
+          {isSubmitting ? (
             <Loader2 className="h-4 w-4 animate-spin" />
           ) : (
             <>
@@ -218,54 +233,56 @@ export function LoginForm({ onDone, onForgot }: { onDone: () => void; onForgot: 
   );
 }
 
-export function ForgotPasswordDialog({
-  open,
-  onOpenChange,
-}: {
-  open: boolean;
-  onOpenChange: (value: boolean) => void;
-}) {
-  const [errors, setErrors] = useState<Record<string, string>>({});
-  const [formError, setFormError] = useState<unknown>(null);
-  const [loading, setLoading] = useState(false);
-  const [sent, setSent] = useState(false);
+type ForgotPasswordDialogProps = {
+  isOpen: boolean;
+  onOpenChange: (isOpen: boolean) => void;
+};
 
-  const submit = async (event: FormEvent<HTMLFormElement>) => {
+export function ForgotPasswordDialog({ isOpen, onOpenChange }: ForgotPasswordDialogProps) {
+  const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
+  const [formError, setFormError] = useState<unknown>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isResetEmailSent, setIsResetEmailSent] = useState(false);
+
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const email = String(new FormData(event.currentTarget).get("email") ?? "").trim();
 
     if (!z.string().email().safeParse(email).success) {
-      setErrors({ email: texts.auth.validation.invalidEmail });
+      setValidationErrors({ email: texts.auth.validation.invalidEmail });
       return;
     }
 
-    setErrors({});
+    setValidationErrors({});
     setFormError(null);
-    setLoading(true);
+    setIsSubmitting(true);
 
     try {
-      await authApi.forgotPassword(email);
-      setSent(true);
+      await authApi.requestPasswordReset(email);
+      setIsResetEmailSent(true);
     } catch (error) {
       setFormError(error);
     } finally {
-      setLoading(false);
+      setIsSubmitting(false);
     }
   };
 
-  const close = () => {
-    setSent(false);
-    setErrors({});
+  const handleClose = () => {
+    setIsResetEmailSent(false);
+    setValidationErrors({});
     onOpenChange(false);
   };
 
   return (
-    <Dialog open={open} onOpenChange={(value) => (value ? onOpenChange(value) : close())}>
+    <Dialog
+      open={isOpen}
+      onOpenChange={(nextIsOpen) => (nextIsOpen ? onOpenChange(true) : handleClose())}
+    >
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="font-semibold tracking-tight">{texts.auth.forgot.title}</DialogTitle>
         </DialogHeader>
-        {sent ? (
+        {isResetEmailSent ? (
           <div className="space-y-4 pb-2 pt-2">
             <div className="flex items-start gap-3 rounded-xl bg-primary/10 p-4">
               <MailCheck className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
@@ -276,12 +293,12 @@ export function ForgotPasswordDialog({
                 </p>
               </div>
             </div>
-            <Button className="w-full rounded-full" onClick={close}>
+            <Button className="w-full rounded-full" onClick={handleClose}>
               {texts.auth.forgot.understood}
             </Button>
           </div>
         ) : (
-          <form onSubmit={submit} className="space-y-4 pb-2 pt-2" noValidate>
+          <form onSubmit={handleSubmit} className="space-y-4 pb-2 pt-2" noValidate>
             <p className="text-sm text-muted-foreground">{texts.auth.forgot.description}</p>
             <div className="space-y-1.5">
               <Label className="text-sm font-medium">{texts.auth.fields.email}</Label>
@@ -293,11 +310,13 @@ export function ForgotPasswordDialog({
                 required
                 maxLength={255}
               />
-              {errors.email && <p className="text-xs text-destructive">{errors.email}</p>}
+              {validationErrors.email && (
+                <p className="text-xs text-destructive">{validationErrors.email}</p>
+              )}
             </div>
             {formError && <ErrorBanner error={formError} />}
-            <Button type="submit" className="w-full gap-2 rounded-full" disabled={loading}>
-              {loading ? (
+            <Button type="submit" className="w-full gap-2 rounded-full" disabled={isSubmitting}>
+              {isSubmitting ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
               ) : (
                 <>
@@ -312,16 +331,16 @@ export function ForgotPasswordDialog({
   );
 }
 
-function SocialButtons() {
-  const [loading, setLoading] = useState<OAuthProvider | null>(null);
-  const [error, setError] = useState<string | null>(null);
+function OAuthButtons() {
+  const [activeOAuthProvider, setActiveOAuthProvider] = useState<OAuthProvider | null>(null);
+  const [oauthError, setOAuthError] = useState<string | null>(null);
 
-  const startOAuth = async (provider: OAuthProvider) => {
-    setLoading(provider);
-    setError(null);
+  const handleOAuthStart = async (provider: OAuthProvider) => {
+    setActiveOAuthProvider(provider);
+    setOAuthError(null);
     await new Promise((resolve) => setTimeout(resolve, 400));
-    setError(texts.auth.social.unavailable(oauthProviders[provider].name));
-    setLoading(null);
+    setOAuthError(texts.auth.social.unavailable(oauthProviders[provider].name));
+    setActiveOAuthProvider(null);
   };
 
   return (
@@ -333,24 +352,30 @@ function SocialButtons() {
             <button
               key={provider}
               type="button"
-              onClick={() => startOAuth(provider)}
-              disabled={loading !== null}
+              onClick={() => handleOAuthStart(provider)}
+              disabled={activeOAuthProvider !== null}
               className="flex items-center justify-center gap-2 rounded-xl border border-border bg-card px-4 py-2.5 text-sm font-medium transition hover:bg-muted disabled:opacity-50"
             >
-              {loading === provider ? <Loader2 className="h-4 w-4 animate-spin" /> : <Icon />}
+              {activeOAuthProvider === provider ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Icon />
+              )}
               {config.label}
             </button>
           );
         },
       )}
-      {error && (
-        <p className="rounded-xl bg-destructive/10 px-4 py-2 text-sm text-destructive">{error}</p>
+      {oauthError && (
+        <p className="rounded-xl bg-destructive/10 px-4 py-2 text-sm text-destructive">
+          {oauthError}
+        </p>
       )}
     </div>
   );
 }
 
-function Divider() {
+function AuthDivider() {
   return (
     <div className="my-5 flex items-center gap-3 text-xs text-muted-foreground">
       <div className="h-px flex-1 bg-border" />
@@ -360,31 +385,33 @@ function Divider() {
   );
 }
 
-function PasswordVisibilityButton({ show, onToggle }: { show: boolean; onToggle: () => void }) {
-  const Icon = show ? EyeOff : Eye;
+type PasswordVisibilityButtonProps = {
+  isVisible: boolean;
+  onToggle: () => void;
+};
+
+function PasswordVisibilityButton({ isVisible, onToggle }: PasswordVisibilityButtonProps) {
+  const Icon = isVisible ? EyeOff : Eye;
   return (
     <button
       type="button"
       onClick={onToggle}
       className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 text-muted-foreground hover:text-foreground"
-      aria-label={show ? texts.auth.password.hide : texts.auth.password.show}
+      aria-label={isVisible ? texts.auth.password.hide : texts.auth.password.show}
     >
       <Icon className="h-4 w-4" />
     </button>
   );
 }
 
-function Field({
-  label,
-  error,
-  right,
-  children,
-}: {
+type AuthFieldProps = {
   label: string;
   error?: string;
   right?: React.ReactNode;
   children: React.ReactNode;
-}) {
+};
+
+function AuthField({ label, error, right, children }: AuthFieldProps) {
   return (
     <div className="space-y-1.5">
       <div className="flex items-center justify-between">
