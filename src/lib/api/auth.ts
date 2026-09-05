@@ -56,6 +56,6 @@ export const authApi = {
 
   completeOAuth: (provider: string, code: string, state: string) =>
     api.get<AuthResponse>(
-      `/auth/oauth/${provider}/callback?${new URLSearchParams({ code, state }).toString()}`,
+      `/auth/oauth/${provider}/callback${new URLSearchParams({ code, state }).toString()}`,
     ),
 };
