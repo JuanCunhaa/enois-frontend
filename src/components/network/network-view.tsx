@@ -9,30 +9,33 @@ import type { ConnectionUiState, RequestDirection } from "@/utils/network";
 import { UserAvatar } from "@/components/user-avatar";
 import { Button } from "@/components/ui/button";
 
-export type NetworkMatchItem = {
+export type NetworkMatchViewModel = {
   user: NetworkUser;
-  state: ConnectionUiState;
+  connectionState: ConnectionUiState;
 };
 
-export type NetworkRequestItem = {
+export type NetworkRequestViewModel = {
   request: ConnectionRequest;
   direction: RequestDirection;
   targetUserId: string;
   user?: Profile;
 };
 
-export function NetworkOverview({
-  summary,
-  suggestionsCount,
-}: {
+type NetworkOverviewProps = {
   summary: NetworkSummary | undefined;
-  suggestionsCount: number;
-}) {
+  suggestionCount: number;
+};
+
+export function NetworkOverview({ summary, suggestionCount }: NetworkOverviewProps) {
   const stats = [
     { label: texts.network.stats.connections, value: summary?.connections ?? 0 },
     { label: texts.network.stats.following, value: summary?.followers ?? 0 },
-    { label: texts.network.stats.requests, value: summary?.pendingRequests ?? 0, highlight: true },
-    { label: texts.network.stats.suggestions, value: suggestionsCount },
+    {
+      label: texts.network.stats.requests,
+      value: summary?.pendingRequests ?? 0,
+      isHighlighted: true,
+    },
+    { label: texts.network.stats.suggestions, value: suggestionCount },
   ];
 
   return (
@@ -45,7 +48,7 @@ export function NetworkOverview({
             key={stat.label}
             label={stat.label}
             value={String(stat.value)}
-            highlight={stat.highlight}
+            isHighlighted={stat.isHighlighted}
           />
         ))}
       </div>
@@ -53,30 +56,34 @@ export function NetworkOverview({
   );
 }
 
-export function PendingRequests({
-  incoming,
-  outgoing,
-  onAccept,
-  onCancel,
-}: {
-  incoming: NetworkRequestItem[];
-  outgoing: NetworkRequestItem[];
+type NetworkPendingRequestsProps = {
+  incomingRequests: NetworkRequestViewModel[];
+  outgoingRequests: NetworkRequestViewModel[];
   onAccept: (userId: string) => void;
   onCancel: (userId: string) => void;
-}) {
-  const groups = [
-    { direction: "incoming" as const, label: texts.network.received, requests: incoming },
-    { direction: "outgoing" as const, label: texts.network.sent, requests: outgoing },
-  ];
-  const total = incoming.length + outgoing.length;
+};
 
-  if (total === 0) return null;
+export function NetworkPendingRequests({
+  incomingRequests,
+  outgoingRequests,
+  onAccept,
+  onCancel,
+}: NetworkPendingRequestsProps) {
+  const groups = [
+    { direction: "incoming" as const, label: texts.network.received, requests: incomingRequests },
+    { direction: "outgoing" as const, label: texts.network.sent, requests: outgoingRequests },
+  ];
+  const totalRequestCount = incomingRequests.length + outgoingRequests.length;
+
+  if (totalRequestCount === 0) return null;
 
   return (
     <section>
       <div className="mb-3">
         <h2 className="text-lg font-semibold">{texts.network.pendingTitle}</h2>
-        <p className="text-sm text-muted-foreground">{texts.network.pendingCount(total)}</p>
+        <p className="text-sm text-muted-foreground">
+          {texts.network.pendingCount(totalRequestCount)}
+        </p>
       </div>
       <div className="space-y-3">
         {groups.map(({ direction, label, requests }) => {
@@ -84,16 +91,16 @@ export function PendingRequests({
           return (
             <div
               key={direction}
-              className={direction === "outgoing" && incoming.length > 0 ? "pt-3" : ""}
+              className={direction === "outgoing" && incomingRequests.length > 0 ? "pt-3" : ""}
             >
               <p className="mb-3 text-xs font-medium uppercase tracking-wider text-muted-foreground">
                 {label}
               </p>
               <div className="space-y-3">
-                {requests.map((item) => (
-                  <RequestCard
-                    key={item.request.id}
-                    item={item}
+                {requests.map((requestViewModel) => (
+                  <NetworkRequestCard
+                    key={requestViewModel.request.id}
+                    requestViewModel={requestViewModel}
                     onAccept={onAccept}
                     onCancel={onCancel}
                   />
@@ -107,17 +114,14 @@ export function PendingRequests({
   );
 }
 
-export function NetworkMatches({
-  items,
-  pending,
-  onConnect,
-  onRemove,
-}: {
-  items: NetworkMatchItem[];
-  pending: boolean;
+type NetworkMatchesProps = {
+  matches: NetworkMatchViewModel[];
+  isPending: boolean;
   onConnect: (userId: string) => void;
   onRemove: (userId: string) => void;
-}) {
+};
+
+export function NetworkMatches({ matches, isPending, onConnect, onRemove }: NetworkMatchesProps) {
   return (
     <section>
       <div className="mb-3 flex items-end justify-between">
@@ -128,12 +132,12 @@ export function NetworkMatches({
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {items.map(({ user, state }) => (
+        {matches.map(({ user, connectionState }) => (
           <NetworkUserCard
             key={user.id}
             user={user}
-            state={state}
-            pending={pending}
+            connectionState={connectionState}
+            isPending={isPending}
             onConnect={onConnect}
             onRemove={onRemove}
           />
@@ -143,20 +147,22 @@ export function NetworkMatches({
   );
 }
 
-function NetworkUserCard({
-  user,
-  state,
-  pending,
-  onConnect,
-  onRemove,
-}: {
+type NetworkUserCardProps = {
   user: NetworkUser;
-  state: ConnectionUiState;
-  pending: boolean;
+  connectionState: ConnectionUiState;
+  isPending: boolean;
   onConnect: (userId: string) => void;
   onRemove: (userId: string) => void;
-}) {
-  const actionMeta: Record<
+};
+
+function NetworkUserCard({
+  user,
+  connectionState,
+  isPending,
+  onConnect,
+  onRemove,
+}: NetworkUserCardProps) {
+  const actionsByState: Record<
     ConnectionUiState,
     {
       Icon: React.ElementType;
@@ -188,7 +194,7 @@ function NetworkUserCard({
       run: () => onConnect(user.id),
     },
   };
-  const action = actionMeta[state];
+  const action = actionsByState[connectionState];
   const ActionIcon = action.Icon;
 
   return (
@@ -217,7 +223,7 @@ function NetworkUserCard({
         <Button
           className={`mt-4 w-full rounded-full gap-1.5 ${action.className}`}
           variant={action.variant}
-          disabled={pending}
+          disabled={isPending}
           onClick={action.run}
         >
           <ActionIcon className="h-4 w-4" /> {action.label}
@@ -227,21 +233,23 @@ function NetworkUserCard({
   );
 }
 
-function RequestCard({
-  item,
-  onAccept,
-  onCancel,
-}: {
-  item: NetworkRequestItem;
+type NetworkRequestCardProps = {
+  requestViewModel: NetworkRequestViewModel;
   onAccept: (userId: string) => void;
   onCancel: (userId: string) => void;
-}) {
-  const { request, direction, targetUserId, user } = item;
-  const descriptions: Record<RequestDirection, string> = {
+};
+
+function NetworkRequestCard({
+  requestViewModel,
+  onAccept,
+  onCancel,
+}: NetworkRequestCardProps) {
+  const { request, direction, targetUserId, user } = requestViewModel;
+  const descriptionsByDirection: Record<RequestDirection, string> = {
     outgoing: texts.network.requestSent,
     incoming: texts.network.wantsToConnect,
   };
-  const actions: Record<RequestDirection, React.ReactNode> = {
+  const actionsByDirection: Record<RequestDirection, React.ReactNode> = {
     outgoing: (
       <Button
         size="sm"
@@ -288,30 +296,30 @@ function RequestCard({
           {user?.headline && (
             <p className="truncate text-xs text-muted-foreground">{user.headline}</p>
           )}
-          <p className="text-[11px] text-muted-foreground">{descriptions[direction]}</p>
+          <p className="text-[11px] text-muted-foreground">
+            {descriptionsByDirection[direction]}
+          </p>
         </div>
       </div>
-      {actions[direction]}
+      {actionsByDirection[direction]}
     </div>
   );
 }
 
-function NetworkStat({
-  label,
-  value,
-  highlight,
-}: {
+type NetworkStatProps = {
   label: string;
   value: string;
-  highlight?: boolean;
-}) {
+  isHighlighted?: boolean;
+};
+
+function NetworkStat({ label, value, isHighlighted }: NetworkStatProps) {
   return (
     <div
       className={`rounded-xl border p-4 ${
-        highlight ? "border-primary/30 bg-primary-soft" : "border-border bg-muted/40"
+        isHighlighted ? "border-primary/30 bg-primary-soft" : "border-border bg-muted/40"
       }`}
     >
-      <p className={`text-2xl font-semibold ${highlight ? "text-primary" : ""}`}>{value}</p>
+      <p className={`text-2xl font-semibold ${isHighlighted ? "text-primary" : ""}`}>{value}</p>
       <p className="text-xs text-muted-foreground">{label}</p>
     </div>
   );
