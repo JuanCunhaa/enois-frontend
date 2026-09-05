@@ -25,10 +25,10 @@ export const Route = createFileRoute("/")({
       { property: "og:description", content: texts.landing.seo.ogDescription },
     ],
   }),
-  component: Landing,
+  component: LandingPage,
 });
 
-function Landing() {
+function LandingPage() {
   return (
     <div className="min-h-screen bg-background">
       <header className="sticky top-0 z-40 border-b border-border bg-background/80 backdrop-blur-lg">
@@ -41,7 +41,8 @@ function Landing() {
               <Sparkles className="h-3.5 w-3.5" />
             </div>
             <span className="text-base font-semibold tracking-tight">
-              {texts.brand.prefix}<span className="gradient-text">{texts.brand.accent}</span>
+              {texts.brand.prefix}
+              <span className="gradient-text">{texts.brand.accent}</span>
             </span>
           </Link>
           <nav className="hidden items-center gap-6 text-sm text-muted-foreground md:flex">
@@ -70,7 +71,11 @@ function Landing() {
       </header>
 
       <section className="relative overflow-hidden">
-        <div aria-hidden className="absolute inset-0 -z-10" style={{ background: "var(--gradient-soft)" }} />
+        <div
+          aria-hidden
+          className="absolute inset-0 -z-10"
+          style={{ background: "var(--gradient-soft)" }}
+        />
         <div
           aria-hidden
           className="absolute -top-24 left-1/2 -z-10 h-[400px] w-[600px] -translate-x-1/2 rounded-full opacity-30 blur-3xl"
@@ -128,15 +133,20 @@ function Landing() {
             <p className="mt-4 text-muted-foreground">{texts.landing.philosophy.description}</p>
           </div>
           <div className="mt-14 grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-            {values.map((v) => (
-              <div key={v.title} className="surface-card p-6 text-center">
-                <div className="mx-auto grid h-11 w-11 place-items-center rounded-xl bg-primary-soft text-primary">
-                  <v.icon className="h-5 w-5" />
+            {philosophyValues.map((philosophyValue) => {
+              const { icon: ValueIcon } = philosophyValue;
+              return (
+                <div key={philosophyValue.title} className="surface-card p-6 text-center">
+                  <div className="mx-auto grid h-11 w-11 place-items-center rounded-xl bg-primary-soft text-primary">
+                    <ValueIcon className="h-5 w-5" />
+                  </div>
+                  <h3 className="mt-4 font-semibold">{philosophyValue.title}</h3>
+                  <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">
+                    {philosophyValue.description}
+                  </p>
                 </div>
-                <h3 className="mt-4 font-semibold">{v.title}</h3>
-                <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">{v.desc}</p>
-              </div>
-            ))}
+              );
+            })}
           </div>
           <div className="mt-12 text-center">
             <p className="inline-flex items-center gap-2 rounded-full bg-primary-soft px-4 py-1.5 text-sm font-medium text-primary">
@@ -157,15 +167,20 @@ function Landing() {
           <p className="mt-4 text-muted-foreground">{texts.landing.features.description}</p>
         </div>
         <div className="mt-14 grid gap-5 md:grid-cols-2 lg:grid-cols-3">
-          {features.map((f) => (
-            <div key={f.title} className="surface-card p-4 sm:p-6">
-              <div className="grid h-10 w-10 place-items-center rounded-xl bg-primary-soft text-primary">
-                <f.icon className="h-5 w-5" />
+          {landingFeatures.map((feature) => {
+            const { icon: FeatureIcon } = feature;
+            return (
+              <div key={feature.title} className="surface-card p-4 sm:p-6">
+                <div className="grid h-10 w-10 place-items-center rounded-xl bg-primary-soft text-primary">
+                  <FeatureIcon className="h-5 w-5" />
+                </div>
+                <h3 className="mt-4 font-semibold">{feature.title}</h3>
+                <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">
+                  {feature.description}
+                </p>
               </div>
-              <h3 className="mt-4 font-semibold">{f.title}</h3>
-              <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">{f.desc}</p>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </section>
 
@@ -175,7 +190,9 @@ function Landing() {
             <div className="mx-auto grid h-12 w-12 place-items-center rounded-2xl bg-primary-soft text-primary">
               <Heart className="h-6 w-6" />
             </div>
-            <h2 className="mt-5 text-3xl font-semibold tracking-tight sm:text-4xl">{texts.landing.cta.title}</h2>
+            <h2 className="mt-5 text-3xl font-semibold tracking-tight sm:text-4xl">
+              {texts.landing.cta.title}
+            </h2>
             <p className="mt-4 text-muted-foreground">{texts.landing.cta.description}</p>
             <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
               <Link to="/entrar" search={{ tab: "signup" }}>
@@ -190,7 +207,8 @@ function Landing() {
               </Link>
             </div>
             <p className="mt-4 text-xs text-muted-foreground/60">
-              {texts.landing.cta.finePrint}{" "}<strong>{texts.landing.cta.freeForever}</strong>
+              {texts.landing.cta.finePrint}{" "}
+              <strong>{texts.landing.cta.freeForever}</strong>
             </p>
           </div>
         </div>
@@ -216,18 +234,58 @@ function Landing() {
   );
 }
 
-const values = [
-  { icon: Heart, title: texts.landing.philosophy.values.authenticity.title, desc: texts.landing.philosophy.values.authenticity.description },
-  { icon: Users, title: texts.landing.philosophy.values.collaboration.title, desc: texts.landing.philosophy.values.collaboration.description },
-  { icon: GraduationCap, title: texts.landing.philosophy.values.learning.title, desc: texts.landing.philosophy.values.learning.description },
-  { icon: ShieldCheck, title: texts.landing.philosophy.values.safety.title, desc: texts.landing.philosophy.values.safety.description },
+const philosophyValues = [
+  {
+    icon: Heart,
+    title: texts.landing.philosophy.values.authenticity.title,
+    description: texts.landing.philosophy.values.authenticity.description,
+  },
+  {
+    icon: Users,
+    title: texts.landing.philosophy.values.collaboration.title,
+    description: texts.landing.philosophy.values.collaboration.description,
+  },
+  {
+    icon: GraduationCap,
+    title: texts.landing.philosophy.values.learning.title,
+    description: texts.landing.philosophy.values.learning.description,
+  },
+  {
+    icon: ShieldCheck,
+    title: texts.landing.philosophy.values.safety.title,
+    description: texts.landing.philosophy.values.safety.description,
+  },
 ];
 
-const features = [
-  { icon: MessageCircle, title: texts.landing.features.items.discussions.title, desc: texts.landing.features.items.discussions.description },
-  { icon: GraduationCap, title: texts.landing.features.items.mentoring.title, desc: texts.landing.features.items.mentoring.description },
-  { icon: Heart, title: texts.landing.features.items.communities.title, desc: texts.landing.features.items.communities.description },
-  { icon: Users, title: texts.landing.features.items.connections.title, desc: texts.landing.features.items.connections.description },
-  { icon: ShieldCheck, title: texts.landing.features.items.recruiting.title, desc: texts.landing.features.items.recruiting.description },
-  { icon: Sparkles, title: texts.landing.features.items.wellbeing.title, desc: texts.landing.features.items.wellbeing.description },
+const landingFeatures = [
+  {
+    icon: MessageCircle,
+    title: texts.landing.features.items.discussions.title,
+    description: texts.landing.features.items.discussions.description,
+  },
+  {
+    icon: GraduationCap,
+    title: texts.landing.features.items.mentoring.title,
+    description: texts.landing.features.items.mentoring.description,
+  },
+  {
+    icon: Heart,
+    title: texts.landing.features.items.communities.title,
+    description: texts.landing.features.items.communities.description,
+  },
+  {
+    icon: Users,
+    title: texts.landing.features.items.connections.title,
+    description: texts.landing.features.items.connections.description,
+  },
+  {
+    icon: ShieldCheck,
+    title: texts.landing.features.items.recruiting.title,
+    description: texts.landing.features.items.recruiting.description,
+  },
+  {
+    icon: Sparkles,
+    title: texts.landing.features.items.wellbeing.title,
+    description: texts.landing.features.items.wellbeing.description,
+  },
 ];
