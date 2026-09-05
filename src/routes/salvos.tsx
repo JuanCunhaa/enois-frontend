@@ -13,16 +13,16 @@ import { PostCard } from "@/components/post-card";
 export const Route = createFileRoute("/salvos")({
   beforeLoad: requireAuth,
   head: () => ({ meta: [{ title: texts.saved.seoTitle }] }),
-  component: SavedPosts,
+  component: SavedPostsPage,
 });
 
-function SavedPosts() {
-  const { data: savedData } = useQuery({
+function SavedPostsPage() {
+  const { data: savedPostsResponse } = useQuery({
     queryKey: ["saved-posts"],
     queryFn: () => feedApi.listSaved(),
   });
 
-  const savedPosts = savedData?.items ?? [];
+  const savedPosts = savedPostsResponse?.items ?? [];
 
   return (
     <AppContainer>
@@ -50,8 +50,8 @@ function SavedPosts() {
           </div>
         ) : (
           <div className="space-y-4">
-            {savedPosts.map((p) => (
-              <PostCard key={p.id} post={p} />
+            {savedPosts.map((post) => (
+              <PostCard key={post.id} post={post} />
             ))}
           </div>
         )}
