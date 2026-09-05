@@ -47,40 +47,40 @@ const feedTabs = [
 ] as const;
 
 type FeedComposerProps = {
-  profile: Profile | null | undefined;
-  draft: string;
-  postType: PostView["type"];
-  media: LocalMediaItem[];
+  currentUser: Profile | null | undefined;
+  content: string;
+  selectedPostType: PostView["type"];
+  mediaItems: LocalMediaItem[];
   publishError: string | null;
   isUploading: boolean;
   uploadProgress: number;
   isPublishing: boolean;
   onSubmit: FormEventHandler<HTMLFormElement>;
-  onDraftChange: (value: string, mentionedUserIds: string[]) => void;
+  onContentChange: (value: string, mentionedUserIds: string[]) => void;
   onPostTypeChange: (type: PostView["type"]) => void;
-  onMediaSelect: (files: FileList) => void;
-  onRemoveMedia: (index: number) => void;
+  onMediaFilesSelect: (files: FileList) => void;
+  onMediaRemove: (index: number) => void;
 };
 
 export function FeedComposer({
-  profile,
-  draft,
-  postType,
-  media,
+  currentUser,
+  content,
+  selectedPostType,
+  mediaItems,
   publishError,
   isUploading,
   uploadProgress,
   isPublishing,
   onSubmit,
-  onDraftChange,
+  onContentChange,
   onPostTypeChange,
-  onMediaSelect,
-  onRemoveMedia,
+  onMediaFilesSelect,
+  onMediaRemove,
 }: FeedComposerProps) {
-  const fileRef = useRef<HTMLInputElement>(null);
-  const mediaType = getLocalMediaTypeFromItems(media);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const mediaType = getLocalMediaTypeFromItems(mediaItems);
   const mediaLabels: Record<LocalMediaType, string> = {
-    image: texts.feed.composer.mediaCount(media.length),
+    image: texts.feed.composer.mediaCount(mediaItems.length),
     video: texts.feed.composer.video,
   };
   const mediaLabel = mediaType ? mediaLabels[mediaType] : texts.feed.composer.media;
@@ -94,36 +94,36 @@ export function FeedComposer({
     >
       <div className="flex items-center gap-3">
         <UserAvatar
-          src={profile?.avatar}
-          alt={profile?.name ?? texts.feed.you}
+          src={currentUser?.avatar}
+          alt={currentUser?.name ?? texts.feed.you}
           className="h-11 w-11"
         />
         <MentionTextarea
-          value={draft}
-          onChange={onDraftChange}
+          value={content}
+          onChange={onContentChange}
           placeholder={texts.feed.composer.placeholder}
           className="min-h-11 flex-1 resize-none rounded-2xl border-border-soft bg-surface-1 px-3 py-2 text-[14px] font-light"
           maxLength={600}
         />
       </div>
 
-      {media.length > 0 && (
+      {mediaItems.length > 0 && (
         <div className="relative mt-3">
           {mediaType === "image" ? (
-            <div className={`grid gap-2 ${media.length === 1 ? "grid-cols-1" : "grid-cols-2"}`}>
-              {media.map((item, index) => (
+            <div className={`grid gap-2 ${mediaItems.length === 1 ? "grid-cols-1" : "grid-cols-2"}`}>
+              {mediaItems.map((mediaItem, index) => (
                 <div
-                  key={item.preview}
+                  key={mediaItem.preview}
                   className="relative overflow-hidden rounded-xl border border-border-soft"
                 >
                   <img
-                    src={item.preview}
+                    src={mediaItem.preview}
                     alt=""
                     className="h-48 w-full object-cover bg-surface-1"
                   />
                   <button
                     type="button"
-                    onClick={() => onRemoveMedia(index)}
+                    onClick={() => onMediaRemove(index)}
                     className="absolute right-2 top-2 grid h-7 w-7 place-items-center rounded-full bg-surface-card/80 text-text-strong shadow hover:bg-surface-card"
                   >
                     <X className="h-4 w-4" />
@@ -133,10 +133,10 @@ export function FeedComposer({
             </div>
           ) : (
             <div className="relative overflow-hidden rounded-xl border border-border-soft">
-              <video src={media[0].preview} controls className="max-h-64 w-full bg-surface-1" />
+              <video src={mediaItems[0].preview} controls className="max-h-64 w-full bg-surface-1" />
               <button
                 type="button"
-                onClick={() => onRemoveMedia(0)}
+                onClick={() => onMediaRemove(0)}
                 className="absolute right-2 top-2 grid h-7 w-7 place-items-center rounded-full bg-surface-card/80 text-text-strong shadow hover:bg-surface-card"
               >
                 <X className="h-4 w-4" />
@@ -147,13 +147,13 @@ export function FeedComposer({
       )}
 
       <input
-        ref={fileRef}
+        ref={fileInputRef}
         type="file"
         accept="image/*,video/*"
         multiple
         className="hidden"
         onChange={(event) => {
-          if (event.target.files?.length) onMediaSelect(event.target.files);
+          if (event.target.files?.length) onMediaFilesSelect(event.target.files);
           event.target.value = "";
         }}
       />
@@ -165,15 +165,15 @@ export function FeedComposer({
               key={action.type}
               icon={action.icon}
               label={action.label}
-              active={postType === action.type}
+              isActive={selectedPostType === action.type}
               onClick={() => onPostTypeChange(action.type)}
             />
           ))}
           <ComposerAction
             icon={MediaIcon}
             label={mediaLabel}
-            active={media.length > 0}
-            onClick={() => fileRef.current?.click()}
+            isActive={mediaItems.length > 0}
+            onClick={() => fileInputRef.current?.click()}
           />
         </div>
 
@@ -188,7 +188,7 @@ export function FeedComposer({
               {texts.feed.composer.uploadProgress(uploadProgress)}
             </span>
           )}
-          <Button size="sm" className="rounded-full" disabled={!draft.trim() || isPublishing}>
+          <Button size="sm" className="rounded-full" disabled={!content.trim() || isPublishing}>
             {isPublishing ? (
               <>
                 <Loader2 className="h-3.5 w-3.5 animate-spin" /> {publishingLabel}
@@ -203,20 +203,19 @@ export function FeedComposer({
   );
 }
 
-export function FeedTabs({
-  activeTab,
-  onChange,
-}: {
+type FeedTabsProps = {
   activeTab: string | undefined;
-  onChange: (value: string) => void;
-}) {
+  onTabChange: (tab: string) => void;
+};
+
+export function FeedTabs({ activeTab, onTabChange }: FeedTabsProps) {
   return (
     <div className="flex flex-wrap items-center gap-1.5">
       {feedTabs.map((tab) => (
         <button
           key={tab.value}
           type="button"
-          onClick={() => onChange(tab.value)}
+          onClick={() => onTabChange(tab.value)}
           className={`rounded-full border px-3 py-1.5 text-[12px] font-light transition ${
             activeTab === tab.value
               ? "border-primary bg-primary text-primary-foreground"
@@ -230,55 +229,65 @@ export function FeedTabs({
   );
 }
 
-export function FeedTimeline({ posts, loading }: { posts: PostView[]; loading: boolean }) {
+type FeedTimelineProps = {
+  posts: PostView[];
+  isLoading: boolean;
+};
+
+export function FeedTimeline({ posts, isLoading }: FeedTimelineProps) {
   return (
     <div className="space-y-4">
-      {loading && (
+      {isLoading && (
         <div className="flex items-center justify-center py-8 text-text-subtle">
           <Loader2 className="h-6 w-6 animate-spin" />
         </div>
       )}
-      {!loading && posts.map((post) => <PostCard key={post.id} post={post} />)}
+      {!isLoading && posts.map((post) => <PostCard key={post.id} post={post} />)}
     </div>
   );
 }
 
 type FeedSidebarProps = {
-  profile: Profile | null | undefined;
+  currentUser: Profile | null | undefined;
   suggestions: NetworkUser[];
   events: Event[];
-  onConnect: (userId: string) => void;
+  onConnectSuggestion: (userId: string) => void;
 };
 
-export function FeedSidebar({ profile, suggestions, events, onConnect }: FeedSidebarProps) {
+export function FeedSidebar({
+  currentUser,
+  suggestions,
+  events,
+  onConnectSuggestion,
+}: FeedSidebarProps) {
   return (
     <aside className="sticky top-20 hidden max-h-[calc(100vh-6rem)] space-y-4 overflow-y-auto lg:block">
-      {profile && (
+      {currentUser && (
         <div className="overflow-hidden rounded-2xl border border-border-soft bg-surface-card">
           <div className="h-14" style={{ background: "var(--gradient-primary)" }} />
           <div className="-mt-7 px-4 pb-4 text-center">
             <UserAvatar
-              src={profile.avatar}
-              alt={profile.name}
+              src={currentUser.avatar}
+              alt={currentUser.name}
               className="mx-auto h-16 w-16 ring-4 ring-surface-card"
             />
             <Link
               to="/perfil/$username"
-              params={{ username: profile.username }}
+              params={{ username: currentUser.username }}
               className="mt-2 block text-[14px] font-light text-text-strong hover:underline"
             >
-              {profile.name}
+              {currentUser.name}
             </Link>
             <p className="line-clamp-2 text-[12px] font-light text-text-subtle">
-              {profile.headline}
+              {currentUser.headline}
             </p>
             <div className="mt-3 grid grid-cols-2 gap-1 border-t border-border-soft pt-3 text-[12px]">
               <div>
-                <p className="font-light text-text-strong">{profile.connectionsCount ?? 0}</p>
+                <p className="font-light text-text-strong">{currentUser.connectionsCount ?? 0}</p>
                 <p className="text-text-subtle">{texts.feed.sidebar.connections}</p>
               </div>
               <div>
-                <p className="font-light text-text-strong">{profile.followersCount ?? 0}</p>
+                <p className="font-light text-text-strong">{currentUser.followersCount ?? 0}</p>
                 <p className="text-text-subtle">{texts.feed.sidebar.followers}</p>
               </div>
             </div>
@@ -312,7 +321,7 @@ export function FeedSidebar({ profile, suggestions, events, onConnect }: FeedSid
                 <button
                   type="button"
                   className="shrink-0 rounded-full border border-border-soft px-3 py-1 text-[12px] font-light text-text-subtle transition hover:border-primary hover:text-primary"
-                  onClick={() => onConnect(user.id)}
+                  onClick={() => onConnectSuggestion(user.id)}
                 >
                   {texts.feed.sidebar.connect}
                 </button>
@@ -346,23 +355,20 @@ export function FeedSidebar({ profile, suggestions, events, onConnect }: FeedSid
   );
 }
 
-function ComposerAction({
-  icon: Icon,
-  label,
-  active,
-  onClick,
-}: {
+type ComposerActionProps = {
   icon: React.ElementType;
   label: string;
-  active?: boolean;
+  isActive?: boolean;
   onClick: () => void;
-}) {
+};
+
+function ComposerAction({ icon: Icon, label, isActive, onClick }: ComposerActionProps) {
   return (
     <button
       type="button"
       onClick={onClick}
       className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[13px] font-light transition ${
-        active ? "bg-surface-2 text-primary" : "hover:bg-surface-3 hover:text-text-strong"
+        isActive ? "bg-surface-2 text-primary" : "hover:bg-surface-3 hover:text-text-strong"
       }`}
     >
       <Icon className="h-4 w-4" />
