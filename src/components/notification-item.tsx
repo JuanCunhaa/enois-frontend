@@ -10,11 +10,11 @@ import { notificationMeta } from "./notification-meta";
 
 type NotificationItemProps = {
   notification: Notification;
-  onMarkAsRead: (id: string) => void;
+  onMarkAsRead: (notificationId: string) => void;
   onAcceptConnection: (actorId: string) => void;
 };
 
-type CtaKind = "accept" | "navigate" | "none";
+type NotificationActionKind = "accept" | "navigate" | "none";
 
 export function NotificationItem({
   notification,
@@ -22,33 +22,38 @@ export function NotificationItem({
   onAcceptConnection,
 }: NotificationItemProps) {
   const navigate = useNavigate();
-  const kind = notification.kind.toLowerCase();
-  const meta = notificationMeta[kind] ?? notificationMeta.connection;
-  const Icon = meta.icon;
+  const notificationKind = notification.kind.toLowerCase();
+  const notificationMetaConfig =
+    notificationMeta[notificationKind] ?? notificationMeta.connection;
+  const NotificationIcon = notificationMetaConfig.icon;
 
-  const markAsRead = () => {
+  const handleMarkAsRead = () => {
     if (!notification.read) onMarkAsRead(notification.id);
   };
 
   const handleNavigate = () => {
-    markAsRead();
+    handleMarkAsRead();
     navigateToHref(notification.href, navigate);
   };
 
   const handleAcceptConnection = () => {
     if (!notification.actorId) return;
-    markAsRead();
+    handleMarkAsRead();
     onAcceptConnection(notification.actorId);
   };
 
-  const canAcceptConnection = kind === "connection_request" && Boolean(notification.actorId);
-  const ctaKind: CtaKind = canAcceptConnection
+  const canAcceptConnection =
+    notificationKind === "connection_request" && Boolean(notification.actorId);
+  const actionKind: NotificationActionKind = canAcceptConnection
     ? "accept"
     : notification.ctaLabel
       ? "navigate"
       : "none";
 
-  const ctaConfig: Record<Exclude<CtaKind, "none">, { label: string; onClick: () => void }> = {
+  const actionConfigByKind: Record<
+    Exclude<NotificationActionKind, "none">,
+    { label: string; onClick: () => void }
+  > = {
     accept: {
       label: notification.ctaLabel || texts.notifications.accept,
       onClick: handleAcceptConnection,
@@ -59,7 +64,7 @@ export function NotificationItem({
     },
   };
 
-  const cta = ctaKind === "none" ? null : ctaConfig[ctaKind];
+  const actionConfig = actionKind === "none" ? null : actionConfigByKind[actionKind];
 
   return (
     <div
@@ -81,8 +86,13 @@ export function NotificationItem({
               className="h-9 w-9 rounded-full object-cover"
             />
           ) : (
-            <span className={cn("grid h-9 w-9 place-items-center rounded-full", meta.className)}>
-              <Icon className="h-4 w-4" />
+            <span
+              className={cn(
+                "grid h-9 w-9 place-items-center rounded-full",
+                notificationMetaConfig.className,
+              )}
+            >
+              <NotificationIcon className="h-4 w-4" />
             </span>
           )}
         </button>
@@ -109,20 +119,20 @@ export function NotificationItem({
               {!notification.read && (
                 <button
                   type="button"
-                  onClick={markAsRead}
+                  onClick={handleMarkAsRead}
                   className="rounded-full px-2 py-1 text-[11px] font-light text-text-subtle transition hover:bg-surface-2 hover:text-text-strong"
                 >
                   {texts.notifications.markRead}
                 </button>
               )}
 
-              {cta && (
+              {actionConfig && (
                 <button
                   type="button"
-                  onClick={cta.onClick}
+                  onClick={actionConfig.onClick}
                   className="rounded-full bg-primary px-3 py-1 text-[11px] font-light text-primary-foreground transition hover:bg-primary/90"
                 >
-                  {cta.label}
+                  {actionConfig.label}
                 </button>
               )}
             </div>

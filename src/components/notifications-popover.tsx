@@ -4,7 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { Bell, CheckCheck } from "lucide-react";
 
-import { networkApi, notificationsApi } from "@/lib/api";
+import { networkApi, notificationApi } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import { texts } from "@/texts";
 import {
@@ -20,38 +20,38 @@ import { NotificationItem } from "./notification-item";
 
 export function NotificationsPopover() {
   const queryClient = useQueryClient();
-  const [notificationTab, setNotificationTab] = useState<NotificationTab>("novas");
+  const [activeNotificationTab, setActiveNotificationTab] = useState<NotificationTab>("new");
 
-  const { data: notificationsData } = useQuery({
+  const { data: notificationsResponse } = useQuery({
     queryKey: ["notifications"],
-    queryFn: () => notificationsApi.list(),
+    queryFn: () => notificationApi.list(),
   });
 
-  const markAsRead = useMutation({
-    mutationFn: (id: string) => notificationsApi.markAsRead(id),
+  const markNotificationReadMutation = useMutation({
+    mutationFn: (notificationId: string) => notificationApi.markRead(notificationId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["notifications"] });
     },
   });
 
-  const markAllAsRead = useMutation({
-    mutationFn: () => notificationsApi.markAllAsRead(),
+  const markAllNotificationsReadMutation = useMutation({
+    mutationFn: () => notificationApi.markAllRead(),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["notifications"] });
     },
   });
 
-  const acceptConnection = useMutation({
-    mutationFn: (actorId: string) => networkApi.accept(actorId),
+  const acceptConnectionRequestMutation = useMutation({
+    mutationFn: (actorId: string) => networkApi.acceptConnectionRequest(actorId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["network"] });
     },
   });
 
-  const notificationList = notificationsData?.items ?? [];
-  const unreadCount = getUnreadCount(notificationList);
-  const activeTab = notificationTabs[notificationTab];
-  const displayedNotifications = notificationList.filter(activeTab.matches);
+  const notifications = notificationsResponse?.items ?? [];
+  const unreadCount = getUnreadCount(notifications);
+  const activeTabConfig = notificationTabs[activeNotificationTab];
+  const displayedNotifications = notifications.filter(activeTabConfig.matches);
 
   return (
     <Popover>
@@ -79,10 +79,10 @@ export function NotificationsPopover() {
       >
         <div className="flex items-center justify-between gap-3 border-b border-border-soft px-4 py-3">
           <span className="text-[14px] font-light text-text-strong">{texts.notifications.title}</span>
-          {unreadCount > 0 && notificationTab === "novas" && (
+          {unreadCount > 0 && activeNotificationTab === "new" && (
             <button
               type="button"
-              onClick={() => markAllAsRead.mutate()}
+              onClick={() => markAllNotificationsReadMutation.mutate()}
               className="flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[11px] font-light text-text-subtle transition hover:text-primary"
             >
               <CheckCheck className="h-3 w-3" />
@@ -92,42 +92,49 @@ export function NotificationsPopover() {
         </div>
 
         <div className="flex border-b border-border-soft">
-          {(Object.entries(notificationTabs) as [NotificationTab, (typeof notificationTabs)[NotificationTab]][]).map(
-            ([key, config]) => (
-              <button
-                key={key}
-                type="button"
-                onClick={() => setNotificationTab(key)}
-                className={cn(
-                  "flex flex-1 items-center justify-center gap-1.5 py-2.5 text-[12px] font-light transition",
-                  notificationTab === key
-                    ? "border-b-2 border-primary text-primary"
-                    : "text-text-subtle hover:text-text-strong",
-                )}
-              >
-                {config.label}
-                {key === "novas" && unreadCount > 0 && (
-                  <span className="flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[9px] text-primary-foreground">
-                    {unreadCount}
-                  </span>
-                )}
-              </button>
-            ),
-          )}
+          {(
+            Object.entries(notificationTabs) as [
+              NotificationTab,
+              (typeof notificationTabs)[NotificationTab],
+            ][]
+          ).map(([tabKey, tabConfig]) => (
+            <button
+              key={tabKey}
+              type="button"
+              onClick={() => setActiveNotificationTab(tabKey)}
+              className={cn(
+                "flex flex-1 items-center justify-center gap-1.5 py-2.5 text-[12px] font-light transition",
+                activeNotificationTab === tabKey
+                  ? "border-b-2 border-primary text-primary"
+                  : "text-text-subtle hover:text-text-strong",
+              )}
+            >
+              {tabConfig.label}
+              {tabKey === "new" && unreadCount > 0 && (
+                <span className="flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[9px] text-primary-foreground">
+                  {unreadCount}
+                </span>
+              )}
+            </button>
+          ))}
         </div>
 
         <div className="max-h-[28rem] overflow-y-auto">
           {displayedNotifications.length === 0 ? (
             <p className="px-4 py-8 text-center text-[13px] font-light text-text-subtle">
-              {activeTab.emptyMessage}
+              {activeTabConfig.emptyMessage}
             </p>
           ) : (
             displayedNotifications.map((notification) => (
               <NotificationItem
                 key={notification.id}
                 notification={notification}
-                onMarkAsRead={(id) => markAsRead.mutate(id)}
-                onAcceptConnection={(actorId) => acceptConnection.mutate(actorId)}
+                onMarkAsRead={(notificationId) =>
+                  markNotificationReadMutation.mutate(notificationId)
+                }
+                onAcceptConnection={(actorId) =>
+                  acceptConnectionRequestMutation.mutate(actorId)
+                }
               />
             ))
           )}
