@@ -18,41 +18,43 @@ import { AppContainer } from "@/components/app-container";
 import {
   NetworkMatches,
   NetworkOverview,
-  PendingRequests,
-  type NetworkRequestItem,
+  NetworkPendingRequests,
+  type NetworkRequestViewModel,
 } from "@/components/network/network-view";
 
 export const Route = createFileRoute("/rede")({
   beforeLoad: requireAuth,
   head: () => ({ meta: [{ title: texts.network.seoTitle }] }),
-  component: NetworkRoute,
+  component: NetworkPage,
 });
 
-function NetworkRoute() {
+function NetworkPage() {
   const queryClient = useQueryClient();
   const { user: currentUser } = useAuth();
-  const [localStatus, setLocalStatus] = useState<Record<string, string>>({});
+  const [connectionStatusByUserId, setConnectionStatusByUserId] = useState<
+    Record<string, string>
+  >({});
 
-  const { data: usersData } = useQuery({
+  const { data: networkUsersData } = useQuery({
     queryKey: ["network", "users"],
-    queryFn: () => networkApi.list(),
+    queryFn: () => networkApi.listUsers(),
   });
-  const { data: summary } = useQuery({
+  const { data: networkSummary } = useQuery({
     queryKey: ["network", "summary"],
-    queryFn: () => networkApi.summary(),
+    queryFn: () => networkApi.getSummary(),
   });
-  const { data: requestsData } = useQuery({
+  const { data: connectionRequestsData } = useQuery({
     queryKey: ["network", "requests"],
-    queryFn: () => networkApi.requests(),
+    queryFn: () => networkApi.listRequests(),
     refetchInterval: 30_000,
   });
 
-  const users = usersData?.items ?? [];
-  const pendingRequests = (requestsData?.items ?? []).filter(
+  const networkUsers = networkUsersData?.items ?? [];
+  const pendingRequests = (connectionRequestsData?.items ?? []).filter(
     (request) => request.status === "PENDING",
   );
   const currentUserId = currentUser?.id ?? "";
-  const requestMeta = pendingRequests.map((request) => {
+  const requestDescriptors = pendingRequests.map((request) => {
     const direction = getRequestDirection(request, currentUserId);
     return {
       request,
@@ -61,7 +63,7 @@ function NetworkRoute() {
     };
   });
   const requestProfileQueries = useQueries({
-    queries: requestMeta.map(({ targetUserId }) => ({
+    queries: requestDescriptors.map(({ targetUserId }) => ({
       queryKey: ["profile", "by-id", targetUserId],
       queryFn: () => profileApi.getById(targetUserId),
       enabled: Boolean(targetUserId),
@@ -69,60 +71,70 @@ function NetworkRoute() {
     })),
   });
 
-  const requestGroups: Record<RequestDirection, NetworkRequestItem[]> = {
+  const requestViewModelsByDirection: Record<RequestDirection, NetworkRequestViewModel[]> = {
     incoming: [],
     outgoing: [],
   };
-  requestMeta.forEach((item, index) => {
-    requestGroups[item.direction].push({
-      ...item,
+  requestDescriptors.forEach((requestDescriptor, index) => {
+    requestViewModelsByDirection[requestDescriptor.direction].push({
+      ...requestDescriptor,
       user: requestProfileQueries[index]?.data,
     });
   });
 
-  const matchItems = users.map((user) => ({
+  const matchViewModels = networkUsers.map((user) => ({
     user,
-    state: getConnectionUiState(user.connected, localStatus[user.id]),
+    connectionState: getConnectionUiState(user.connected, connectionStatusByUserId[user.id]),
   }));
 
-  const invalidate = () => queryClient.invalidateQueries({ queryKey: ["network"] });
+  const invalidateNetworkQueries = () =>
+    queryClient.invalidateQueries({ queryKey: ["network"] });
 
-  const acceptRequest = useMutation({
-    mutationFn: (id: string) => networkApi.accept(id),
-    onSuccess: invalidate,
+  const acceptConnectionRequestMutation = useMutation({
+    mutationFn: (userId: string) => networkApi.acceptConnectionRequest(userId),
+    onSuccess: invalidateNetworkQueries,
   });
-  const connect = useMutation({
-    mutationFn: (id: string) => networkApi.connect(id),
-    onSuccess: invalidate,
+  const sendConnectionRequestMutation = useMutation({
+    mutationFn: (userId: string) => networkApi.sendConnectionRequest(userId),
+    onSuccess: invalidateNetworkQueries,
   });
-  const remove = useMutation({
-    mutationFn: (id: string) => networkApi.remove(id),
-    onSuccess: invalidate,
+  const removeConnectionMutation = useMutation({
+    mutationFn: (userId: string) => networkApi.removeConnection(userId),
+    onSuccess: invalidateNetworkQueries,
   });
 
   const handleConnect = (userId: string) => {
-    connect.mutate(userId);
-    setLocalStatus((status) => ({ ...status, [userId]: "REQUESTED" }));
+    sendConnectionRequestMutation.mutate(userId);
+    setConnectionStatusByUserId((currentStatusByUserId) => ({
+      ...currentStatusByUserId,
+      [userId]: "REQUESTED",
+    }));
   };
 
   const handleRemove = (userId: string) => {
-    remove.mutate(userId);
-    setLocalStatus((status) => ({ ...status, [userId]: "REMOVED" }));
+    removeConnectionMutation.mutate(userId);
+    setConnectionStatusByUserId((currentStatusByUserId) => ({
+      ...currentStatusByUserId,
+      [userId]: "REMOVED",
+    }));
   };
+
+  const isConnectionMutationPending =
+    sendConnectionRequestMutation.isPending || removeConnectionMutation.isPending;
 
   return (
     <AppContainer>
       <div className="space-y-6">
-        <NetworkOverview summary={summary} suggestionsCount={users.length} />
-        <PendingRequests
-          incoming={requestGroups.incoming}
-          outgoing={requestGroups.outgoing}
-          onAccept={acceptRequest.mutate}
-          onCancel={remove.mutate}
+        <NetworkOverview summary={networkSummary} suggestionCount={networkUsers.length} />
+        <NetworkPendingRequests
+          incomingRequests={requestViewModelsByDirection.incoming}
+          outgoingRequests={requestViewModelsByDirection.outgoing}
+          onAccept={acceptConnectionRequestMutation.mutate}
+          onCancel={removeConnectionMutation.mutate}
         />
         <NetworkMatches
-          items={matchItems}
-          pending={connect.isPending || remove.isPending}
+          matches={matchViewModels}
+          isPending={isConnectionMutationPending}
           onConnect={handleConnect}
           onRemove={handleRemove}
         />
