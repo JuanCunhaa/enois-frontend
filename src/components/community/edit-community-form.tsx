@@ -213,7 +213,7 @@ export function EditCommunityForm({ community, onClose }: EditCommunityFormProps
 
       {cropImageSource && cropPurpose && activeCropConfig && (
         <ImageCropDialog
-          open
+          isOpen
           onOpenChange={(isOpen) => {
             if (!isOpen) resetCropState();
           }}

@@ -245,7 +245,7 @@ function ProfilePage() {
 
       {cropImageSource && cropPurpose && (
         <ImageCropDialog
-          open={Boolean(cropImageSource)}
+          isOpen={Boolean(cropImageSource)}
           onOpenChange={(isOpen) => {
             if (!isOpen) resetCropState();
           }}
