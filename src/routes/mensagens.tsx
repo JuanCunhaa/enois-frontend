@@ -3,42 +3,42 @@ import { type FormEvent, useState } from "react";
 import { useMutation, useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 
-import { messagesApi, networkApi, profileApi } from "@/lib/api";
+import { messageApi, networkApi, profileApi } from "@/lib/api";
 import { useAuth } from "@/lib/use-auth";
 import { texts } from "@/texts";
-import { getOtherParticipantId, sortByTime } from "@/utils/messages";
+import { getOtherParticipantId, sortMessagesByTime } from "@/utils/messages";
 
 import { AppContainer } from "@/components/app-container";
 import {
+  MessageSidebar,
   MessageThread,
-  MessagesSidebar,
-  type ConversationWithUser,
-} from "@/components/messages/messages-view";
+  type ConversationListItemViewModel,
+} from "@/components/message/message-view";
 
 export const Route = createFileRoute("/mensagens")({
   head: () => ({ meta: [{ title: texts.messages.seoTitle }] }),
-  component: MessagesRoute,
+  component: MessagesPage,
 });
 
-function MessagesRoute() {
+function MessagesPage() {
   const { user: currentUser } = useAuth();
   const queryClient = useQueryClient();
-  const [activeId, setActiveId] = useState<string | null>(null);
+  const [activeConversationId, setActiveConversationId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
-  const [text, setText] = useState("");
-  const [showSearch, setShowSearch] = useState(false);
+  const [messageDraft, setMessageDraft] = useState("");
+  const [isContactSearchVisible, setIsContactSearchVisible] = useState(false);
 
-  const { data: conversationsData } = useQuery({
+  const { data: conversationsResponse } = useQuery({
     queryKey: ["conversations"],
-    queryFn: () => messagesApi.listConversations(),
+    queryFn: () => messageApi.listConversations(),
     refetchInterval: 15_000,
   });
 
-  const conversations = conversationsData?.items ?? [];
+  const conversations = conversationsResponse?.items ?? [];
   const otherParticipantIds = conversations.map((conversation) =>
     getOtherParticipantId(conversation.participantIds, currentUser?.id),
   );
-  const participantQueries = useQueries({
+  const participantProfileQueries = useQueries({
     queries: otherParticipantIds.map((participantId) => ({
       queryKey: ["profile", "by-id", participantId],
       queryFn: () => profileApi.getById(participantId ?? ""),
@@ -47,92 +47,98 @@ function MessagesRoute() {
     })),
   });
 
-  const conversationItems: ConversationWithUser[] = conversations.map((conversation, index) => ({
-    conversation,
-    otherUser: participantQueries[index]?.data,
-  }));
-  const activeItem = activeId
-    ? conversationItems.find(({ conversation }) => conversation.id === activeId)
+  const conversationItems: ConversationListItemViewModel[] = conversations.map(
+    (conversation, index) => ({
+      conversation,
+      participantProfile: participantProfileQueries[index]?.data,
+    }),
+  );
+  const activeConversationItem = activeConversationId
+    ? conversationItems.find(({ conversation }) => conversation.id === activeConversationId)
     : undefined;
-  const activeConversation = activeItem?.conversation ?? null;
+  const activeConversation = activeConversationItem?.conversation ?? null;
 
-  const { data: messagesData } = useQuery({
+  const { data: messagesResponse } = useQuery({
     queryKey: ["messages", activeConversation?.id],
-    queryFn: () => messagesApi.listMessages(activeConversation!.id),
+    queryFn: () => messageApi.listMessages(activeConversation!.id),
     enabled: Boolean(activeConversation),
     refetchInterval: 10_000,
   });
 
-  const { data: searchResults } = useQuery({
+  const { data: contactSearchResponse } = useQuery({
     queryKey: ["network", "users", searchQuery],
-    queryFn: () => networkApi.list(searchQuery),
+    queryFn: () => networkApi.listUsers(searchQuery),
     enabled: searchQuery.length > 0,
   });
 
-  const filteredUsers = (searchResults?.items ?? []).filter((user) => user.id !== currentUser?.id);
+  const contactSearchResults = (contactSearchResponse?.items ?? []).filter(
+    (networkUser) => networkUser.id !== currentUser?.id,
+  );
 
-  const sendMessage = useMutation({
+  const sendMessageMutation = useMutation({
     mutationFn: ({ conversationId, message }: { conversationId: string; message: string }) =>
-      messagesApi.sendMessage(conversationId, message),
+      messageApi.sendMessage(conversationId, message),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["messages", activeConversation?.id] });
       queryClient.invalidateQueries({ queryKey: ["conversations"] });
-      setText("");
+      setMessageDraft("");
     },
   });
 
-  const createConversation = useMutation({
+  const createConversationMutation = useMutation({
     mutationFn: (participantId: string) =>
-      messagesApi.createConversation({ kind: "DIRECT", participantIds: [participantId] }),
+      messageApi.createConversation({ kind: "DIRECT", participantIds: [participantId] }),
     onSuccess: (conversation) => {
-      setActiveId(conversation.id);
-      setShowSearch(false);
+      setActiveConversationId(conversation.id);
+      setIsContactSearchVisible(false);
       setSearchQuery("");
       queryClient.invalidateQueries({ queryKey: ["conversations"] });
     },
   });
 
-  const markAsRead = useMutation({
-    mutationFn: (conversationId: string) => messagesApi.markAsRead(conversationId),
+  const markConversationAsReadMutation = useMutation({
+    mutationFn: (conversationId: string) => messageApi.markConversationRead(conversationId),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["conversations"] }),
   });
 
-  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+  const handleMessageSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    const message = text.trim();
+    const message = messageDraft.trim();
     if (!message || !activeConversation) return;
-    sendMessage.mutate({ conversationId: activeConversation.id, message });
+    sendMessageMutation.mutate({ conversationId: activeConversation.id, message });
+  };
+
+  const handleSelectConversation = (conversation: ConversationListItemViewModel["conversation"]) => {
+    setActiveConversationId(conversation.id);
+    if (conversation.unread > 0) markConversationAsReadMutation.mutate(conversation.id);
   };
 
   return (
     <AppContainer>
       <div className="surface-card grid h-[calc(100dvh-11rem)] grid-cols-1 overflow-hidden md:h-[calc(100vh-9rem)] md:grid-cols-[320px_1fr]">
-        <MessagesSidebar
+        <MessageSidebar
           conversations={conversationItems}
-          activeId={activeId}
+          activeConversationId={activeConversationId}
           currentUserId={currentUser?.id ?? ""}
-          showSearch={showSearch}
+          isContactSearchVisible={isContactSearchVisible}
           searchQuery={searchQuery}
-          searchResults={filteredUsers}
-          onToggleSearch={() => setShowSearch((value) => !value)}
+          contactSearchResults={contactSearchResults}
+          onToggleContactSearch={() => setIsContactSearchVisible((isVisible) => !isVisible)}
           onSearchQueryChange={setSearchQuery}
-          onCreateConversation={createConversation.mutate}
-          onSelectConversation={(conversation) => {
-            setActiveId(conversation.id);
-            if (conversation.unread > 0) markAsRead.mutate(conversation.id);
-          }}
+          onCreateConversation={createConversationMutation.mutate}
+          onSelectConversation={handleSelectConversation}
         />
 
         <MessageThread
           conversation={activeConversation}
-          otherUser={activeItem?.otherUser}
+          participantProfile={activeConversationItem?.participantProfile}
           currentUserId={currentUser?.id ?? ""}
-          messages={sortByTime(messagesData?.items ?? [])}
-          text={text}
-          sending={sendMessage.isPending}
-          onBack={() => setActiveId(null)}
-          onTextChange={setText}
-          onSubmit={handleSubmit}
+          messages={sortMessagesByTime(messagesResponse?.items ?? [])}
+          messageDraft={messageDraft}
+          isSending={sendMessageMutation.isPending}
+          onBack={() => setActiveConversationId(null)}
+          onMessageDraftChange={setMessageDraft}
+          onSubmit={handleMessageSubmit}
         />
       </div>
     </AppContainer>

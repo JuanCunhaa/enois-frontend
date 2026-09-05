@@ -13,9 +13,9 @@ import { UserAvatar } from "@/components/user-avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
-export type ConversationWithUser = {
+export type ConversationListItemViewModel = {
   conversation: Conversation;
-  otherUser?: Profile;
+  participantProfile?: Profile;
 };
 
 const messageStyles = {
@@ -31,34 +31,34 @@ const messageStyles = {
   },
 } as const;
 
-type MessagesSidebarProps = {
-  conversations: ConversationWithUser[];
-  activeId: string | null;
+type MessageSidebarProps = {
+  conversations: ConversationListItemViewModel[];
+  activeConversationId: string | null;
   currentUserId: string;
-  showSearch: boolean;
+  isContactSearchVisible: boolean;
   searchQuery: string;
-  searchResults: NetworkUser[];
-  onToggleSearch: () => void;
-  onSearchQueryChange: (value: string) => void;
+  contactSearchResults: NetworkUser[];
+  onToggleContactSearch: () => void;
+  onSearchQueryChange: (query: string) => void;
   onCreateConversation: (userId: string) => void;
   onSelectConversation: (conversation: Conversation) => void;
 };
 
-export function MessagesSidebar({
+export function MessageSidebar({
   conversations,
-  activeId,
+  activeConversationId,
   currentUserId,
-  showSearch,
+  isContactSearchVisible,
   searchQuery,
-  searchResults,
-  onToggleSearch,
+  contactSearchResults,
+  onToggleContactSearch,
   onSearchQueryChange,
   onCreateConversation,
   onSelectConversation,
-}: MessagesSidebarProps) {
+}: MessageSidebarProps) {
   return (
     <div
-      className={`flex flex-col border-r border-border ${activeId ? "hidden md:flex" : "flex"}`}
+      className={`flex flex-col border-r border-border ${activeConversationId ? "hidden md:flex" : "flex"}`}
     >
       <div className="border-b border-border p-4">
         <div className="mb-3 flex items-center justify-between">
@@ -67,13 +67,13 @@ export function MessagesSidebar({
             size="sm"
             variant="outline"
             className="rounded-full"
-            onClick={onToggleSearch}
+            onClick={onToggleContactSearch}
           >
-            {showSearch ? texts.messages.back : texts.messages.new}
+            {isContactSearchVisible ? texts.messages.back : texts.messages.new}
           </Button>
         </div>
 
-        {showSearch ? (
+        {isContactSearchVisible ? (
           <div className="space-y-3">
             <div className="relative">
               <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -87,12 +87,12 @@ export function MessagesSidebar({
             </div>
             {searchQuery && (
               <div className="space-y-1">
-                {searchResults.length === 0 ? (
+                {contactSearchResults.length === 0 ? (
                   <p className="py-4 text-center text-sm text-muted-foreground">
                     {texts.messages.noContact}
                   </p>
                 ) : (
-                  searchResults.map((user) => (
+                  contactSearchResults.map((user) => (
                     <button
                       key={user.id}
                       type="button"
@@ -127,9 +127,10 @@ export function MessagesSidebar({
             {texts.messages.noConversations}
           </li>
         ) : (
-          conversations.map(({ conversation, otherUser }) => {
-            const title = conversation.title ?? otherUser?.name ?? texts.messages.conversationFallback;
-            const otherUserId =
+          conversations.map(({ conversation, participantProfile }) => {
+            const title =
+              conversation.title ?? participantProfile?.name ?? texts.messages.conversationFallback;
+            const participantUserId =
               getOtherParticipantId(conversation.participantIds, currentUserId) ?? currentUserId;
 
             return (
@@ -138,14 +139,18 @@ export function MessagesSidebar({
                   type="button"
                   onClick={() => onSelectConversation(conversation)}
                   className={`flex w-full items-center gap-3 px-4 py-3 text-left transition ${
-                    conversation.id === activeId ? "bg-primary-soft" : "hover:bg-muted"
+                    conversation.id === activeConversationId ? "bg-primary-soft" : "hover:bg-muted"
                   }`}
                 >
                   <Link
                     to="/perfil/$username"
-                    params={{ username: otherUser?.username ?? otherUserId }}
+                    params={{ username: participantProfile?.username ?? participantUserId }}
                   >
-                    <UserAvatar src={otherUser?.avatar} alt={title} className="h-11 w-11 shrink-0" />
+                    <UserAvatar
+                      src={participantProfile?.avatar}
+                      alt={title}
+                      className="h-11 w-11 shrink-0"
+                    />
                   </Link>
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center justify-between">
@@ -177,25 +182,25 @@ export function MessagesSidebar({
 
 type MessageThreadProps = {
   conversation: Conversation | null;
-  otherUser?: Profile;
+  participantProfile?: Profile;
   currentUserId: string;
   messages: Message[];
-  text: string;
-  sending: boolean;
+  messageDraft: string;
+  isSending: boolean;
   onBack: () => void;
-  onTextChange: (value: string) => void;
+  onMessageDraftChange: (messageDraft: string) => void;
   onSubmit: FormEventHandler<HTMLFormElement>;
 };
 
 export function MessageThread({
   conversation,
-  otherUser,
+  participantProfile,
   currentUserId,
   messages,
-  text,
-  sending,
+  messageDraft,
+  isSending,
   onBack,
-  onTextChange,
+  onMessageDraftChange,
   onSubmit,
 }: MessageThreadProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -214,8 +219,8 @@ export function MessageThread({
     );
   }
 
-  const title = conversation.title ?? otherUser?.name ?? texts.messages.conversationFallback;
-  const otherUserId =
+  const title = conversation.title ?? participantProfile?.name ?? texts.messages.conversationFallback;
+  const participantUserId =
     getOtherParticipantId(conversation.participantIds, currentUserId) ?? currentUserId;
 
   return (
@@ -231,14 +236,20 @@ export function MessageThread({
           </button>
           <Link
             to="/perfil/$username"
-            params={{ username: otherUser?.username ?? otherUserId }}
+            params={{ username: participantProfile?.username ?? participantUserId }}
           >
-            <UserAvatar src={otherUser?.avatar} alt={title} className="h-10 w-10 shrink-0" />
+            <UserAvatar
+              src={participantProfile?.avatar}
+              alt={title}
+              className="h-10 w-10 shrink-0"
+            />
           </Link>
           <div className="min-w-0">
             <p className="truncate font-semibold">{title}</p>
-            {otherUser?.headline && (
-              <p className="truncate text-xs text-muted-foreground">{otherUser.headline}</p>
+            {participantProfile?.headline && (
+              <p className="truncate text-xs text-muted-foreground">
+                {participantProfile.headline}
+              </p>
             )}
           </div>
         </div>
@@ -260,11 +271,11 @@ export function MessageThread({
                   {ownership === "theirs" && (
                     <Link
                       to="/perfil/$username"
-                      params={{ username: otherUser?.username ?? otherUserId }}
+                      params={{ username: participantProfile?.username ?? participantUserId }}
                     >
                       <UserAvatar
-                        src={otherUser?.avatar}
-                        alt={otherUser?.name}
+                        src={participantProfile?.avatar}
+                        alt={participantProfile?.name}
                         className="mb-1 h-7 w-7 shrink-0"
                       />
                     </Link>
@@ -287,14 +298,14 @@ export function MessageThread({
 
       <form onSubmit={onSubmit} className="flex items-center gap-2 border-t border-border p-3">
         <Input
-          value={text}
-          onChange={(event) => onTextChange(event.target.value)}
+          value={messageDraft}
+          onChange={(event) => onMessageDraftChange(event.target.value)}
           placeholder={texts.messages.inputPlaceholder}
           className="h-10 rounded-full bg-muted"
         />
         <button
           type="submit"
-          disabled={!text.trim() || sending}
+          disabled={!messageDraft.trim() || isSending}
           className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-primary text-primary-foreground transition hover:opacity-90 disabled:opacity-50"
         >
           <Send className="h-4 w-4" />
