@@ -1,0 +1,16 @@
+{
+  "brand": {
+    "primary": "#6746F5",
+    "primaryDark": "#4325B8",
+    "deep": "#261357",
+    "lilac": "#A78BFA",
+    "lilacLight": "#EEE8FF",
+    "coralAccent": "#FF7A70"
+  },
+  "neutral": {
+    "charcoal": "#21173A",
+    "surface": "#FAF9FF",
+    "white": "#FFFFFF",
+    "night": "#160D2D"
+  }
+}
