@@ -97,8 +97,12 @@ export function MediaGrid({
               src={resolveCdnUrl(m.cdnUrl)}
               alt=""
               loading="lazy"
-              className={`w-full object-cover bg-surface-1 transition hover:scale-105 ${
-                compact ? "h-28 sm:h-36" : "h-48"
+              className={`w-full bg-surface-1 transition hover:scale-105 ${
+                compact
+                  ? "h-28 sm:h-36 object-cover"
+                  : items.length === 1
+                    ? "max-h-[32rem] object-contain"
+                    : "h-48 object-cover"
               }`}
             />
           </button>
