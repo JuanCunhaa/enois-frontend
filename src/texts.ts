@@ -299,11 +299,14 @@ export const texts = {
     tabs: {
       new: "Novas",
       history: "Histórico",
+      requests: "Solicitações",
     },
     emptyNew: "Nenhuma notificação nova.",
     emptyHistory: "Nenhum histórico ainda.",
+    emptyRequests: "Nenhuma solicitação pendente.",
     markRead: "Lida",
     accept: "Aceitar",
+    reject: "Recusar",
     unreadLabel: (count: number) =>
       `${count} ${count === 1 ? "notificação não lida" : "notificações não lidas"}`,
     openActorProfile: (name: string) => `Abrir o perfil de ${name || "quem interagiu"}`,
