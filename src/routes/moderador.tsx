@@ -342,9 +342,28 @@ function ApplicationSection({ me }: { me: ModeratorMeView }) {
   );
 }
 
+/** Cor do badge por severidade do motivo. */
+function reasonStyle(reason: string): string {
+  switch (reason) {
+    case "VIOLENCE":
+    case "HARASSMENT":
+      return "bg-destructive/15 text-destructive";
+    case "SCAM":
+    case "SPAM":
+      return "bg-orange-500/15 text-orange-600 dark:text-orange-400";
+    case "DISCRIMINATION":
+    case "PREJUDICE":
+      return "bg-yellow-500/15 text-yellow-700 dark:text-yellow-400";
+    default:
+      return "bg-surface-2 text-text-strong";
+  }
+}
+
 function ReportsSection({ admin }: { admin: boolean }) {
   const queryClient = useQueryClient();
   const { toast } = useToast();
+  const [filterReason, setFilterReason] = useState<string | null>(null);
+  const [filterTarget, setFilterTarget] = useState<string | null>(null);
 
   const { data, isLoading } = useQuery({
     queryKey: ["moderator", "reports"],
@@ -364,8 +383,6 @@ function ReportsSection({ admin }: { admin: boolean }) {
 
   const [removeTarget, setRemoveTarget] = useState<string | null>(null);
 
-  // Ações diretas do admin no card: remover a postagem (approve do fluxo, que apaga o post) e
-  // avisar o autor (a denúncia é revisada e o conteúdo fica). Nenhuma delas bane a conta.
   const adminAction = useMutation({
     mutationFn: ({ reportId, action }: { reportId: string; action: "remove" | "warn" }) =>
       action === "remove"
@@ -383,6 +400,15 @@ function ReportsSection({ admin }: { admin: boolean }) {
     onError: () => toast(texts.moderator.reports.actionError, "error"),
   });
 
+  const filtered = (data ?? []).filter((r) => {
+    if (filterReason && r.reason !== filterReason) return false;
+    if (filterTarget && r.targetType !== filterTarget) return false;
+    return true;
+  });
+
+  const activeReasons = [...new Set((data ?? []).map((r) => r.reason))];
+  const activeTargets = [...new Set((data ?? []).map((r) => r.targetType))];
+
   return (
     <section className="space-y-3">
       <h2 className="text-sm font-semibold uppercase tracking-widest text-text-subtle">
@@ -396,132 +422,204 @@ function ReportsSection({ admin }: { admin: boolean }) {
           <EmptyState icon={Gavel} title={texts.moderator.reports.empty} />
         </div>
       ) : (
-        <ul className="space-y-3">
-          {data!.map((report) => (
-            <li
-              key={report.reportId}
-              className="space-y-3 rounded-2xl border border-border-soft bg-surface-card p-4"
-            >
-              <div className="flex flex-wrap items-center gap-2 text-xs text-text-subtle">
-                <span className="rounded-full bg-surface-2 px-2 py-0.5 font-medium text-text-strong">
-                  {texts.moderator.reports.reason}: {report.reason}
-                </span>
-
-                <span className="rounded-full border border-border-soft px-2 py-0.5">
-                  {texts.moderator.reports.target}: {report.targetType.toLowerCase()}
-                </span>
-
-                <span>{new Date(report.createdAt).toLocaleString("pt-BR")}</span>
-              </div>
-
-              <div className="grid gap-1 text-sm sm:grid-cols-2">
-                <p>
-                  <span className="text-text-subtle">{texts.moderator.reports.reporter}: </span>
-
-                  <span className="text-text-strong">{report.reporter}</span>
-                </p>
-
-                <p>
-                  <span className="text-text-subtle">{texts.moderator.reports.author}: </span>
-
-                  <span className="text-text-strong">
-                    {report.author || texts.moderator.reports.noAuthor}
-                  </span>
-                </p>
-              </div>
-
-              <p className="max-h-48 overflow-y-auto whitespace-pre-wrap break-words rounded-xl bg-surface-2 px-3 py-2 text-sm text-text-strong">
-                {report.content || texts.moderator.reports.noContent}
-              </p>
-
-              {report.description && (
-                <p className="text-xs text-text-subtle">“{report.description}”</p>
+        <>
+          <div className="flex flex-wrap gap-1.5">
+            <button
+              type="button"
+              onClick={() => { setFilterReason(null); setFilterTarget(null); }}
+              className={cn(
+                "rounded-full px-2.5 py-1 text-xs font-medium transition",
+                !filterReason && !filterTarget
+                  ? "bg-primary text-primary-foreground"
+                  : "border border-border-soft text-text-subtle hover:border-primary/50",
               )}
+            >
+              {texts.moderator.reports.filterAll}
+            </button>
 
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <p className="text-xs font-medium text-text-subtle">
-                  {texts.moderator.reports.votes(
-                    report.punishVotes,
-                    report.dismissVotes,
-                    report.quorum,
-                  )}
-                  {report.myVote && (
-                    <span className="ml-2 text-primary">
-                      {texts.moderator.reports.myVote(report.myVote)}
-                    </span>
-                  )}
-                </p>
-
-                {admin && (
-                  <Link
-                    to="/moderacao/$reportId"
-                    params={{ reportId: report.reportId }}
-                    className="text-xs text-primary hover:underline"
-                  >
-                    {texts.moderator.reports.openReview}
-                  </Link>
+            {activeReasons.map((reason) => (
+              <button
+                key={reason}
+                type="button"
+                onClick={() => { setFilterReason(filterReason === reason ? null : reason); setFilterTarget(null); }}
+                className={cn(
+                  "rounded-full px-2.5 py-1 text-xs font-medium transition",
+                  filterReason === reason
+                    ? "bg-primary text-primary-foreground"
+                    : "border border-border-soft text-text-subtle hover:border-primary/50",
                 )}
-              </div>
+              >
+                {texts.moderator.reports.reasons[reason] ?? reason}
+              </button>
+            ))}
 
-              <div className="flex flex-wrap gap-2">
-                <Button
-                  size="sm"
-                  className="rounded-full gap-1.5"
-                  disabled={vote.isPending}
-                  onClick={() => vote.mutate({ reportId: report.reportId, vote: "PUNISH" })}
+            {activeTargets.length > 1 && activeTargets.map((target) => (
+              <button
+                key={target}
+                type="button"
+                onClick={() => { setFilterTarget(filterTarget === target ? null : target); setFilterReason(null); }}
+                className={cn(
+                  "rounded-full px-2.5 py-1 text-xs font-medium transition",
+                  filterTarget === target
+                    ? "bg-primary text-primary-foreground"
+                    : "border border-border-soft text-text-subtle hover:border-primary/50",
+                )}
+              >
+                {texts.moderator.reports.targets[target] ?? target}
+              </button>
+            ))}
+          </div>
+
+          <ul className="space-y-3">
+            {filtered.map((report) => {
+              const alreadyVoted = report.myVote !== null;
+              return (
+                <li
+                  key={report.reportId}
+                  className={cn(
+                    "space-y-3 rounded-2xl border bg-surface-card p-4 transition",
+                    alreadyVoted ? "border-primary/20" : "border-border-soft",
+                  )}
                 >
-                  <Check className="h-3.5 w-3.5" />
+                  <div className="flex flex-wrap items-center gap-2 text-xs text-text-subtle">
+                    <span className={cn("rounded-full px-2.5 py-0.5 font-semibold", reasonStyle(report.reason))}>
+                      {texts.moderator.reports.reasons[report.reason] ?? report.reason}
+                    </span>
 
-                  <>{texts.moderator.reports.punish}</>
-                </Button>
+                    <span className="rounded-full border border-border-soft px-2 py-0.5">
+                      {texts.moderator.reports.targets[report.targetType] ?? report.targetType}
+                    </span>
 
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="rounded-full gap-1.5"
-                  disabled={vote.isPending}
-                  onClick={() => vote.mutate({ reportId: report.reportId, vote: "DISMISS" })}
-                >
-                  <X className="h-3.5 w-3.5" />
+                    <span>{new Date(report.createdAt).toLocaleString("pt-BR")}</span>
+                  </div>
 
-                  <>{texts.moderator.reports.dismiss}</>
-                </Button>
-              </div>
+                  <div className="grid gap-1 text-sm sm:grid-cols-2">
+                    <p>
+                      <span className="text-text-subtle">{texts.moderator.reports.reporter}: </span>
+                      <span className="font-medium text-text-strong">{report.reporter}</span>
+                    </p>
 
-              {admin && (
-                <div className="flex flex-wrap items-center gap-2 border-t border-border-soft pt-2">
-                  <span className="text-xs font-medium uppercase tracking-wide text-text-subtle">
-                    {texts.moderator.reports.adminActions}
-                  </span>
+                    <p>
+                      <span className="text-text-subtle">{texts.moderator.reports.author}: </span>
+                      <span className="font-medium text-text-strong">
+                        {report.author || texts.moderator.reports.noAuthor}
+                      </span>
+                    </p>
+                  </div>
 
-                  {report.targetType === "POST" && (
+                  {report.content ? (
+                    <div className="max-h-48 overflow-y-auto whitespace-pre-wrap break-words rounded-xl border border-border-soft bg-surface-2 px-3 py-2 text-sm text-text-strong">
+                      {report.content}
+                    </div>
+                  ) : (
+                    <p className="rounded-xl bg-surface-2 px-3 py-2 text-sm italic text-text-subtle">
+                      {texts.moderator.reports.noContent}
+                    </p>
+                  )}
+
+                  {report.description && (
+                    <p className="rounded-lg border-l-2 border-primary/30 pl-3 text-xs text-text-subtle">
+                      "{report.description}"
+                    </p>
+                  )}
+
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div className="flex items-center gap-3 text-xs font-medium">
+                      <span className={cn(
+                        "rounded-full px-2 py-0.5",
+                        report.punishVotes > 0 ? "bg-destructive/10 text-destructive" : "text-text-subtle",
+                      )}>
+                        Punir: {report.punishVotes}
+                      </span>
+
+                      <span className={cn(
+                        "rounded-full px-2 py-0.5",
+                        report.dismissVotes > 0 ? "bg-green-500/10 text-green-600 dark:text-green-400" : "text-text-subtle",
+                      )}>
+                        Descartar: {report.dismissVotes}
+                      </span>
+
+                      <span className="text-text-subtle">
+                        Quórum: {report.quorum}
+                      </span>
+
+                      {report.myVote && (
+                        <span className="rounded-full bg-primary/10 px-2 py-0.5 text-primary">
+                          {texts.moderator.reports.myVote(report.myVote)}
+                        </span>
+                      )}
+                    </div>
+
+                    {admin && (
+                      <Link
+                        to="/moderacao/$reportId"
+                        params={{ reportId: report.reportId }}
+                        className="text-xs text-primary hover:underline"
+                      >
+                        {texts.moderator.reports.openReview}
+                      </Link>
+                    )}
+                  </div>
+
+                  <div className="flex flex-wrap gap-2">
+                    <Button
+                      size="sm"
+                      className={cn("rounded-full gap-1.5", report.myVote === "PUNISH" && "ring-2 ring-primary ring-offset-2 ring-offset-surface-card")}
+                      disabled={vote.isPending}
+                      onClick={() => vote.mutate({ reportId: report.reportId, vote: "PUNISH" })}
+                    >
+                      <Check className="h-3.5 w-3.5" />
+                      <>{texts.moderator.reports.punish}</>
+                    </Button>
+
                     <Button
                       size="sm"
                       variant="outline"
-                      className="rounded-full"
-                      disabled={adminAction.isPending}
-                      onClick={() => setRemoveTarget(report.reportId)}
+                      className={cn("rounded-full gap-1.5", report.myVote === "DISMISS" && "ring-2 ring-primary ring-offset-2 ring-offset-surface-card")}
+                      disabled={vote.isPending}
+                      onClick={() => vote.mutate({ reportId: report.reportId, vote: "DISMISS" })}
                     >
-                      {texts.moderator.reports.removePost}
+                      <X className="h-3.5 w-3.5" />
+                      <>{texts.moderator.reports.dismiss}</>
                     </Button>
-                  )}
+                  </div>
 
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="rounded-full"
-                    disabled={adminAction.isPending}
-                    onClick={() =>
-                      adminAction.mutate({ reportId: report.reportId, action: "warn" })
-                    }
-                  >
-                    {texts.moderator.reports.warn}
-                  </Button>
-                </div>
-              )}
-            </li>
-          ))}
-        </ul>
+                  {admin && (
+                    <div className="flex flex-wrap items-center gap-2 border-t border-border-soft pt-2">
+                      <span className="text-xs font-medium uppercase tracking-wide text-text-subtle">
+                        {texts.moderator.reports.adminActions}
+                      </span>
+
+                      {report.targetType === "POST" && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="rounded-full"
+                          disabled={adminAction.isPending}
+                          onClick={() => setRemoveTarget(report.reportId)}
+                        >
+                          {texts.moderator.reports.removePost}
+                        </Button>
+                      )}
+
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="rounded-full"
+                        disabled={adminAction.isPending}
+                        onClick={() =>
+                          adminAction.mutate({ reportId: report.reportId, action: "warn" })
+                        }
+                      >
+                        {texts.moderator.reports.warn}
+                      </Button>
+                    </div>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+        </>
       )}
 
       <ConfirmDialog
