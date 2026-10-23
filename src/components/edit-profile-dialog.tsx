@@ -318,6 +318,7 @@ export function EditProfileDialog({ profile, children }: Props) {
                       <button
                         type="button"
                         aria-label={`${texts.profile.edit.badgeRemove} ${index + 1}`}
+                        title={`${texts.profile.edit.badgeRemove} ${index + 1}`}
                         onClick={() =>
                           setBadges((current) => current.filter((item) => item !== url))
                         }
@@ -780,6 +781,8 @@ function SubList<
                   <div className="flex items-center gap-1">
                     <button
                       onClick={() => startEdit(item)}
+                      aria-label={texts.common.edit}
+                      title={texts.common.edit}
                       className="grid h-8 w-8 place-items-center rounded-lg hover:bg-surface-2"
                     >
                       <Pencil className="h-4 w-4 text-text-subtle" />
@@ -787,6 +790,8 @@ function SubList<
 
                     <button
                       onClick={() => remove.mutate(item.id)}
+                      aria-label={texts.common.remove}
+                      title={texts.common.remove}
                       className="grid h-8 w-8 place-items-center rounded-lg hover:bg-surface-2 hover:text-destructive"
                     >
                       <Trash2 className="h-4 w-4" />

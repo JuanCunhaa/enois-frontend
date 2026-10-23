@@ -630,6 +630,8 @@ function Home() {
                         <button
                           type="button"
                           onClick={() => removeMedia(i)}
+                          aria-label={texts.feed.composer.removeMedia}
+                          title={texts.feed.composer.removeMedia}
                           className="absolute right-2 top-2 grid h-7 w-7 place-items-center rounded-full bg-surface-card/80 text-text-strong shadow hover:bg-surface-card"
                         >
                           <X className="h-4 w-4" />
@@ -650,6 +652,8 @@ function Home() {
                     <button
                       type="button"
                       onClick={() => removeMedia(0)}
+                      aria-label={texts.feed.composer.removeMedia}
+                      title={texts.feed.composer.removeMedia}
                       className="absolute right-2 top-2 grid h-7 w-7 place-items-center rounded-full bg-surface-card/80 text-text-strong shadow hover:bg-surface-card"
                     >
                       <X className="h-4 w-4" />
@@ -970,6 +974,7 @@ function Home() {
                       variant="ghost"
                       className="rounded-full"
                       title={texts.feed.composer.scheduleCancel}
+                      aria-label={texts.feed.composer.scheduleCancel}
                       disabled={cancelScheduled.isPending}
                       onClick={() => cancelScheduled.mutate(agendado.id)}
                     >

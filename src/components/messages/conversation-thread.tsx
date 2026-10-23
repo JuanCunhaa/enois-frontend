@@ -381,6 +381,7 @@ export function ConversationThread({
                     onClick={() => removeMediaItem(index)}
                     className="absolute -right-1.5 -top-1.5 grid h-5 w-5 place-items-center rounded-full bg-foreground text-background shadow"
                     aria-label={texts.messages.removeMedia}
+                    title={texts.messages.removeMedia}
                   >
                     <X className="h-3 w-3" />
                   </button>
@@ -456,6 +457,7 @@ export function ConversationThread({
               onClick={() => mediaInputRef.current?.click()}
               className="grid h-10 w-10 shrink-0 place-items-center rounded-full text-text-subtle transition hover:bg-muted hover:text-foreground"
               aria-label={texts.messages.attachMedia}
+              title={texts.messages.attachMedia}
             >
               <ImageIcon className="h-4 w-4" />
             </button>
@@ -503,6 +505,8 @@ export function ConversationThread({
 
             <button
               type="submit"
+              aria-label={texts.messages.send}
+              title={texts.messages.send}
               disabled={(!text.trim() && media.length === 0) || sendMessage.isPending}
               className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-primary text-primary-foreground transition hover:opacity-90 disabled:opacity-50"
             >

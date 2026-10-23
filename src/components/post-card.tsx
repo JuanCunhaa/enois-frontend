@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { memo, useEffect, useState } from "react";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
@@ -53,7 +53,7 @@ import { typeMeta } from "./post/type-meta";
  */
 const POST_COMPACT_THRESHOLD = 400;
 
-export function PostCard({
+function PostCardView({
   post,
   feedTab,
   fullPost = false,
@@ -241,6 +241,13 @@ export function PostCard({
         // Post de página: sem canto no card, porque o conteúdo tem de alcançar as bordas — o
         // arredondamento do card recortava os cantos da página e era o que sobrava de "rounding".
         post.pageHtml ? "rounded-none" : "overflow-hidden rounded-2xl"
+      } ${
+        // Na lista, o navegador pula layout e pintura dos cards fora da tela; `auto` no tamanho
+        // guarda a altura real depois da primeira vez, para a barra de rolagem não pular. Fica de
+        // fora o post de página (o iframe dele mede a própria altura) e a página do post.
+        !fullPost && post.type !== "PAGE"
+          ? "[contain-intrinsic-size:auto_360px] [content-visibility:auto]"
+          : ""
       }`}
     >
       {post.repostOf && (
@@ -711,6 +718,14 @@ export function PostCard({
     </article>
   );
 }
+
+/**
+ * O card é memorizado porque as listas moram em rotas grandes: no feed, cada tecla no compositor
+ * (o rascunho é estado da rota) renderizava de novo todos os cards da tela. Com `memo`, o card só
+ * renderiza quando o post dele (ou outra prop) muda; o React Query preserva o objeto do post que
+ * não mudou entre uma página e outra.
+ */
+export const PostCard = memo(PostCardView);
 
 /** Quantas horas faltam para o Momento se apagar (arredonda para cima; mínimo 1). */
 function remainingHours(expiresAt: string): number {

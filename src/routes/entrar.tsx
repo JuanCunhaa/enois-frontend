@@ -451,7 +451,13 @@ function SignupForm(_props: AuthFormProps) {
           <Turnstile
             ref={turnstileRef}
             siteKey={turnstileSiteKey}
-            options={{ size: "flexible", theme: "dark" }}
+            options={{
+              // Invisible na maior parte do tempo: o widget so aparece se o Cloudflare
+              // pedir interacao. Protecao continua, caixa na tela nao.
+              size: "flexible",
+              theme: "dark",
+              appearance: "interaction-only",
+            }}
           />
         )}
         {captchaMode === "CHALLENGE" && (

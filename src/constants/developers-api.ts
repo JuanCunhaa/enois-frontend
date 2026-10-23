@@ -11,7 +11,7 @@ import type { ApiUseCase } from "@/types/application/developers/api-use-case";
  * Manter em sincronia com os controllers do backend: cada bloco novo de API entra aqui.
  */
 
-const P = "https://enois.ia.br/api";
+const P = "https://enois-api-qa.b7cloud.tech/api";
 
 export const API_BASE_URL = P;
 

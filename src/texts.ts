@@ -1201,6 +1201,7 @@ export const texts = {
     share: "Compartilhar",
     empty: "Nada por aqui ainda. Publicações da sua rede aparecem neste feed.",
     composer: {
+      removeMedia: "Remover mídia",
       topic: "Assunto",
       insertInText: "Inserir no texto",
       insertMedia: (number: number) => `Inserir mídia ${number} no texto`,
@@ -1544,6 +1545,7 @@ export const texts = {
       uploadFailed: "Não foi possível enviar a mídia. Tente de novo.",
     },
     video: {
+      playerTitle: "Vídeo do post",
       openLabel: "abrir no site",
       watchOn: (provider: string) => `Clique para assistir no ${provider}`,
       icons: {
@@ -2823,6 +2825,7 @@ export const texts = {
   messages: {
     seoTitle: "Mensagens · Énóis",
     title: "Mensagens",
+    send: "Enviar mensagem",
     back: "Voltar",
     new: "Nova",
     searchContacts: "Buscar contatos...",
@@ -2931,8 +2934,21 @@ export const texts = {
     originRemoved: "Origem removida.",
     originError: "Não foi possível cadastrar a origem.",
     originValidHint:
-      "Use só o domínio com https (http é aceito apenas em localhost). Sem origem cadastrada, a requisição recebe 403 ORIGIN_REQUIRED. Atividade suspeita derruba a origem automaticamente.",
-    originBlocked: "Bloqueada por atividade suspeita",
+      "Use só o domínio com https (http é aceito apenas em localhost). Sem origem cadastrada, a requisição recebe 403 ORIGIN_REQUIRED.",
+    sandboxTitle: "API pública = sandbox. Produção só com pedido aprovado",
+    sandboxBody:
+      "Os exemplos desta página apontam para o ambiente de testes (sandbox). Quem precisa falar com a API de produção abre um pedido no suporte com os dados abaixo — a gente confere e libera o acesso.",
+    sandboxFields: [
+      "Nome completo",
+      "RG e CPF",
+      "E-mail e telefone de contato",
+      "Empresa/projeto e site (se houver)",
+      "Tipo de integração (bot, painel, automação, app, cliente customizado) e o que ela vai fazer",
+      "Volumes estimados de requisição e horários de uso",
+    ],
+    sandboxWhy:
+      "Não queríamos frear quem integra: o ambiente separado nasceu por necessidade. Uma onda massiva de ataques e de testes rodando em produção (sondagem de cadastro, varredura de perfis, carga em endpoints de dinheiro) obrigou a separar o que é teste do que é dinheiro de verdade.",
+    sandboxCta: "Abrir pedido de acesso à API de produção",
     philosophyTitle: "Filosofia",
     philosophy:
       "A API existe para ampliar o acesso à informação e automatizar processos — nunca para fabricar interação social. Publicar conteúdo automaticamente (IA, bots, integrações) é proibido; criar e agendar posts pela funcionalidade oficial, com você no controle, é permitido.",
@@ -3017,8 +3033,11 @@ export const texts = {
       ACCOUNT: "Conta e acesso",
       CONTENT: "Conteúdo e denúncia",
       IDEA: "Ideia ou sugestão",
+      API_ACCESS: "Acesso à API de produção",
       OTHER: "Outro",
     } as Record<string, string>,
+    apiAccessTemplate:
+      "Pedido de acesso à API de produção (a API pública roda no sandbox).\n\nNome completo:\nRG:\nCPF:\nE-mail e telefone:\nEmpresa/projeto e site:\nTipo de integração (bot, painel, automação, app, cliente customizado):\nO que a integração vai fazer:\nVolume estimado de requisições e horários de uso:\n",
     message: "Descreva o problema",
     messagePlaceholder: "Quanto mais detalhes, melhor conseguimos ajudar.",
     contactEmail: "E-mail para contato",
