@@ -96,7 +96,7 @@ export function NotificationsPopover() {
   const totalUnread = unreadCount + chatUnreadCount;
   const displayedNotifications =
     notificationTab === "chat"
-      ? chatNotifications
+      ? chatNotifications.filter((notification) => !notification.read)
       : notificationList.filter((notification) =>
           notificationTab === "novas" ? !notification.read : notification.read,
         );
