@@ -436,9 +436,9 @@ export const texts = {
     },
     seo: {
       authTitle: "Entrar ou criar conta · Énóis",
-      authDescription: "Acesse sua conta ou comece sua jornada profissional na Énóis.",
+      authDescription: "Acesse sua conta ou entre para o Énóis, uma rede humana feita por gente.",
       resetTitle: "Redefinir senha · Énóis",
-      resetDescription: "Defina uma nova senha para sua conta na Énóis.",
+      resetDescription: "Defina uma nova senha para sua conta no Énóis.",
     },
     captcha: {
       label: "Verificação de segurança",
@@ -1978,6 +1978,18 @@ export const texts = {
     description:
       "Feitos pela comunidade. O Énóis não hospeda: cada jogo roda no lugar onde o criador o publicou — aqui só o convite.",
     searchPlaceholder: "Buscar jogo, criador ou tag",
+    /** Categorias de jogo: a comunidade e os jogos diários (que eram uma página à parte). */
+    categoryCommunity: "Jogos da comunidade",
+    categoryDaily: "Jogos diários",
+    categoryHint: "Os jogos da comunidade e os desafios do dia moram no mesmo lugar.",
+    allGamesTitle: "Todos os jogos",
+    allGamesHint: "O catálogo inteiro da comunidade, para ir direto no que você procura.",
+    allGamesShow: "Ver o catálogo",
+    allGamesHide: "Esconder o catálogo",
+    dailyNeedsAccount: "Os desafios do dia são para quem tem conta",
+    dailyNeedsAccountHint:
+      "Entre para jogar palavras, labirinto e blocos — e concuir os três rende faíscas.",
+    dailyEnter: "Entrar para jogar",
     mostPlayed: "Mais jogados",
     alphabetical: "A-Z",
     loadMore: "Carregar mais",
@@ -2843,7 +2855,18 @@ export const texts = {
     mediaSpoilerActive: "Mídias marcadas como spoiler",
     conversationFallback: "Conversa",
     loadMoreConversations: "Carregar conversas antigas",
-    tabs: { all: "Todas", jobs: "Vagas", people: "Pessoas", archived: "Arquivadas" },
+    tabs: {
+      all: "Todas",
+      jobs: "Vagas",
+      services: "Serviços",
+      people: "Pessoas",
+      archived: "Arquivadas",
+    },
+    attachService: "Anexar o serviço que você presta",
+    attachServiceTitle: "Seu serviço",
+    attachServiceHint: "Escolha o serviço para mandar o link na conversa.",
+    serviceAttachment: "Serviço:",
+    noServices: "Você ainda não publicou nenhum serviço.",
     selectMode: "Selecionar",
     cancelSelection: "Cancelar",
     selectAll: "Selecionar tudo",
@@ -2867,6 +2890,13 @@ export const texts = {
       "Tudo sob a mesma base da API. As rotas de leitura pública não pedem credencial; as demais usam a sessão do Énóis no header X-Session-Token — o mesmo token que o app usa, obtido no login.",
     chromeIntroPublic:
       "Sem sessão você já consegue: ler post público e comentários, listar comunidades e o feed delas, vagas (com a origem), eventos, mentores, ranking, busca e estatísticas. Escrever (postar, comentar, reagir, denunciar…) pede a sessão de uma conta real.",
+    versionTitle: "Versão da API",
+    versionHint:
+      "Chame pelo caminho versionado: são as mesmas rotas, com o endereço que não muda quando o backend cresce.",
+    versionNote:
+      "A v1 responde exatamente como a rota sem versão: mesmo corpo, mesmo envelope de erro (código, mensagem e instante). Quem quiser a lista do que existe na versão pede GET /api/v1 — o índice é gerado pelo próprio servidor, então ele não mente.",
+    versionNow:
+      "Por enquanto a v1 acompanha a API atual: é o mesmo contrato com o endereço fixo. Quando o contrato for congelado, a v1 passa a ser a referência e a rota sem versão vira a que muda.",
     paginationTitle: "Paginação",
     errorsTitle: "Erros",
     idempotencyHint:
@@ -2902,13 +2932,26 @@ export const texts = {
     sandboxWhy:
       "Não queríamos frear quem integra: o ambiente separado nasceu por necessidade. Uma onda massiva de ataques e de testes rodando em produção (sondagem de cadastro, varredura de perfis, carga em endpoints de dinheiro) obrigou a separar o que é teste do que é dinheiro de verdade.",
     sandboxCta: "Abrir pedido de acesso à API de produção",
+    originsTitle: "Origens autorizadas",
+    originsDescription:
+      "Toda requisição ao backend precisa de uma origem cadastrada. O navegador manda Origin sozinho; chamadas de servidor (SSR, curl, integrações) precisam mandar X-Client-Origin: https://meuapp.com. A origem do próprio Énóis é liberada automaticamente; cadastre a do seu app abaixo.",
+    originsLogin: "Entre na sua conta para cadastrar a origem do seu app.",
+    originPlaceholder: "https://meuapp.com",
+    originAdd: "Cadastrar origem",
+    originEmpty: "Nenhuma origem cadastrada ainda.",
+    originRemove: "Remover",
+    originAdded: "Origem cadastrada.",
+    originRemoved: "Origem removida.",
+    originError: "Não foi possível cadastrar a origem.",
+    originValidHint:
+      "Use só o domínio com https (http é aceito apenas em localhost). Sem origem cadastrada, a requisição recebe 403 ORIGIN_REQUIRED.",
     philosophyTitle: "Filosofia",
     philosophy:
       "A API existe para ampliar o acesso à informação e automatizar processos — nunca para fabricar interação social. Publicar conteúdo automaticamente (IA, bots, integrações) é proibido; criar e agendar posts pela funcionalidade oficial, com você no controle, é permitido.",
     baseUrlTitle: "Base da API",
     baseUrlHint: "Todas as rotas ficam sob",
     baseUrlNote:
-      "Respostas JSON. Timestamps em UTC (ISO-8601). Identificadores são estáveis (prefixados por tipo).",
+      "Respostas JSON. Timestamps em UTC (ISO-8601). Identificadores são estáveis (prefixados por tipo). Toda requisição precisa de uma origem cadastrada: o navegador manda Origin; chamadas de servidor mandam X-Client-Origin.",
     authTitle: "Autenticação",
     authIntro:
       "As rotas públicas não pedem credencial. As demais usam a sessão do Énóis (a mesma do app):",
@@ -3109,6 +3152,22 @@ export const texts = {
    * Admins (allowlist de username no backend) decidem candidaturas e podem punir qualquer usuário.
    */
   moderator: {
+    panic: {
+      title: "Modo pânico",
+      description:
+        "Bloqueia toda escrita da aplicação (POST/PUT/PATCH/DELETE) com 429 imediatamente. O login e este botão continuam funcionando para você poder desligar.",
+      active:
+        "ATIVO — toda escrita está respondendo 429. Desligue para a aplicação voltar ao normal.",
+      activate: "Ativar modo pânico",
+      deactivate: "Desativar modo pânico",
+      confirmTitle: "Ativar o modo pânico?",
+      confirmBody:
+        "Publicações, comentários, mensagens, cadastros e qualquer outra escrita vão falhar com 429 até você desligar. A API de login e este botão continuam acessíveis.",
+      done: (active: boolean) => (active ? "Modo pânico ATIVADO." : "Modo pânico desativado."),
+      error: "Não foi possível alterar o modo pânico.",
+      envLocked:
+        "Modo pânico travado pela variável de ambiente PANIC_MODE. Para voltar ao normal, esvazie o secret e faça um novo deploy.",
+    },
     seoTitle: "Painel de moderador · Énóis",
     back: "Voltar",
     title: "Painel de moderador",
@@ -3762,7 +3821,7 @@ export const texts = {
 
   legal: {
     footer: {
-      copyright: (year: number) => `© ${year} Énóis · Rede profissional gratuita e humana`,
+      copyright: (year: number) => `© ${year} Énóis · Rede humana gratuita`,
       terms: "Termos de Uso",
       privacy: "Política de Privacidade",
       guidelines: "Diretrizes da Comunidade",
@@ -3939,13 +3998,16 @@ export const texts = {
 
   pwa: {
     themeColor: "#6746f5",
+    /** Descrição do manifesto do PWA: é a frase que o navegador mostra ao convidar a instalar. */
+    manifestDescription:
+      "Rede humana para conexões autênticas: conversa, comunidades, vagas, mentoria, brincadeira e construção junto.",
     offlineTitle: "Você está offline",
     offlineDescription:
       "Não conseguimos falar com o servidor. Verifique sua conexão e tente de novo.",
     offlineRetry: "Tentar novamente",
     install: {
       ariaLabel: "Instalar aplicativo",
-      title: "Instale o app da Énóis",
+      title: "Instale o app do Énóis",
       description: "Abra direto da tela inicial e receba notificações.",
       action: "Instalar",
       close: "Fechar convite de instalação",

@@ -22,11 +22,14 @@ describe("chave da sessão", () => {
     expect(getSessionKey()).toBe(id);
   });
 
-  it("falha sem randomUUID e preserva a chave anterior", () => {
+  it("gera uma chave UUID v4 sem randomUUID", () => {
     localStorage.setItem("session_id", "sessao-anterior");
     vi.stubGlobal("crypto", {});
-    expect(() => renewSessionKey()).toThrow(TypeError);
-    expect(getSessionKey()).toBe("sessao-anterior");
+    expect(() => renewSessionKey()).not.toThrow();
+    expect(getSessionKey()).toMatch(
+      /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/,
+    );
+    expect(getSessionKey()).not.toBe("sessao-anterior");
   });
 
   it("sair remove a chave da sessão", () => {

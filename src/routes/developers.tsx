@@ -2,13 +2,21 @@ import { type ComponentProps, useState } from "react";
 
 import { Link, createFileRoute } from "@tanstack/react-router";
 
-import { API_BASE_URL, apiSections, apiUseCases } from "@/constants/developers-api";
+import {
+  API_BASE_URL,
+  API_V1_BASE_URL,
+  apiSections,
+  apiUseCases,
+} from "@/constants/developers-api";
 import { texts } from "@/texts";
 import type { ApiEndpoint } from "@/types/application/developers/api-endpoint";
 import type { HttpMethod } from "@/types/application/developers/http-method";
 import { Check, Copy } from "lucide-react";
 
+import { ogMetas } from "@/lib/seo";
+
 import { AppContainer } from "@/components/app-container";
+import { DeveloperOriginsSection } from "@/components/developers/developer-origins-section";
 
 export const Route = createFileRoute("/developers")({
   // Pagina PUBLICA de documentacao. O subdominio developers.enois.ia.br aponta para ca quando o
@@ -17,6 +25,7 @@ export const Route = createFileRoute("/developers")({
     meta: [
       { title: texts.developers.seoTitle },
       { name: "description", content: texts.developers.seoDescription },
+      ...ogMetas(texts.developers.seoTitle, texts.developers.seoDescription),
     ],
   }),
   component: Developers,
@@ -175,6 +184,14 @@ function Developers() {
           <p className="mt-2 text-sm font-normal text-text-subtle">{texts.developers.philosophy}</p>
         </Section>
 
+        <Section title={texts.developers.originsTitle} id="origens">
+          <p className="mt-2 text-sm font-normal text-text-subtle">
+            {texts.developers.originsDescription}
+          </p>
+
+          <DeveloperOriginsSection />
+        </Section>
+
         <Section title={texts.developersChrome.startTitle} id="comecando">
           <div className="mt-2 space-y-3 text-sm font-normal text-text-subtle">
             <p>
@@ -207,6 +224,24 @@ function Developers() {
                   {texts.developers.sandboxCta}
                 </Link>
               </p>
+            <div className="rounded-xl border border-border-soft p-3">
+              <p className="text-xs font-semibold uppercase tracking-wide text-text-subtle">
+                {texts.developersChrome.versionTitle}
+              </p>
+
+              <p className="mt-1 text-sm">
+                {texts.developersChrome.versionHint}{" "}
+                <code className="font-mono text-text-strong">{API_V1_BASE_URL}</code>
+              </p>
+
+              <CodeBlock
+                code={`GET ${API_V1_BASE_URL}/feed/posts/$POST_ID
+GET ${API_V1_BASE_URL}          # indice da versao`}
+              />
+
+              <p className="mt-2 text-sm text-text-subtle">{texts.developersChrome.versionNote}</p>
+
+              <p className="mt-1 text-sm text-text-subtle">{texts.developersChrome.versionNow}</p>
             </div>
 
             <CodeBlock

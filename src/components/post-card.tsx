@@ -43,6 +43,7 @@ import { PostOwnerMenu } from "./post/post-owner-menu";
 import { PostPage } from "./post/post-page";
 import { ReactionsSummary } from "./post/reactions-summary";
 import { RichText } from "./post/rich-text";
+import { SpoilerMedia } from "./post/spoiler-media";
 import { typeMeta } from "./post/type-meta";
 
 /**
@@ -110,6 +111,9 @@ export function PostCard({
   });
   const pageHtml = post.pageHtml ?? pagePost?.pageHtml ?? "";
   const articleBody = post.articleBody ?? pagePost?.articleBody ?? "";
+  // Algumas listagens/cache antigos podem não trazer a flag; a leitura detalhada do post é a
+  // fonte de reserva para que um spoiler já publicado não apareça aberto ao entrar no post.
+  const mediaSpoiler = post.mediaSpoiler ?? pagePost?.mediaSpoiler ?? false;
   // As ações do post (reagir, comentar, compartilhar, salvar, denunciar) moram no `PostActions` —
   // a mesma peça que o post do blog usa. Aqui fica só o card, que é quem inicializa o estado dele.
   const initializePostCard = usePostCardStore((state) => state.initializePostCard);
@@ -374,7 +378,7 @@ export function PostCard({
           <RichText
             content={hideExternalPageUrls(post.content)}
             mediaIds={post.mediaIds}
-            mediaSpoiler={post.mediaSpoiler}
+            mediaSpoiler={mediaSpoiler}
             className={cn(
               "mt-4 whitespace-pre-line break-words text-base font-normal leading-relaxed text-text-strong",
               isCompact && "line-clamp-8",
@@ -420,7 +424,11 @@ export function PostCard({
 
           {post.repostOfMediaIds && post.repostOfMediaIds.length > 0 && (
             <div className="mt-2">
-              <MediaGrid mediaIds={post.repostOfMediaIds} compact />
+              <MediaGrid
+                mediaIds={post.repostOfMediaIds}
+                compact
+                mediaSpoiler={mediaSpoiler}
+              />
             </div>
           )}
 
@@ -478,13 +486,15 @@ export function PostCard({
               sobrou sem marcador — repetir a mesma mídia duas vezes seria estranho. */}
           <MediaGrid
             mediaIds={post.mediaIds.filter((id) => !inlineMediaIds(post.content).includes(id))}
-            mediaSpoiler={post.mediaSpoiler}
+            mediaSpoiler={mediaSpoiler}
           />
         </div>
       )}
 
       {pageHtml ? (
-        <PostPage postId={post.id} html={pageHtml} />
+        <SpoilerMedia active={mediaSpoiler} label={texts.posts.mediaSpoiler.reveal}>
+          {() => <PostPage postId={post.id} html={pageHtml} />}
+        </SpoilerMedia>
       ) : pageLoading ? (
         <p className="mt-4 rounded-xl border border-dashed border-border-soft px-3 py-6 text-center text-xs font-normal text-text-subtle">
           {texts.posts.page.loading}

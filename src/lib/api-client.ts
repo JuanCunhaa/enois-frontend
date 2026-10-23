@@ -1,6 +1,7 @@
 import type { RequestOptions } from "@/types/application/api/request-options";
 
 import { notifyBirthDateRequired, notifyParentalConsentRequired } from "./age-required";
+import { clientOriginHeader } from "./api/client-origin";
 import { clearAuthHint } from "./auth-hint";
 import { getDeviceId } from "./device-id";
 import { resetSessionScopedData } from "./query-client";
@@ -42,7 +43,8 @@ function getToken(): string | null {
 
 function authHeaders(): Record<string, string> {
   const token = getToken();
-  const headers: Record<string, string> = {};
+  // Toda requisição declara a origem do app; o backend recusa sem uma origem cadastrada.
+  const headers: Record<string, string> = { ...clientOriginHeader() };
   if (token) headers["X-Session-Token"] = token;
   // Identificador opaco do dispositivo (não é MAC): correlaciona requisições e uploads nos logs.
   const deviceId = getDeviceId();
@@ -128,7 +130,7 @@ async function doRefresh(): Promise<boolean> {
   try {
     const response = await fetch(`${baseUrl()}/auth/refresh`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", ...clientOriginHeader() },
       body: JSON.stringify({ refreshToken: token }),
     });
 
