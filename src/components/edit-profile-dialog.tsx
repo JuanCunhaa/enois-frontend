@@ -229,7 +229,7 @@ export function EditProfileDialog({ profile, children }: Props) {
 
             <div className="flex items-center gap-2">
               <Button size="sm" variant="outline" onClick={() => setOpen(false)}>
-                {texts.common.cancel}
+                {tab === "info" ? texts.common.cancel : texts.common.close}
               </Button>
 
               {generalError && (
@@ -241,9 +241,13 @@ export function EditProfileDialog({ profile, children }: Props) {
                 </p>
               )}
 
-              <Button size="sm" onClick={handleSave} disabled={updateProfile.isPending}>
-                {updateProfile.isPending ? texts.common.saving : texts.common.save}
-              </Button>
+              {/* Experiências/formação/certificações têm o próprio "Salvar" por item. Manter o
+                  botão do perfil aqui fechava o diálogo e descartava a edição em andamento. */}
+              {tab === "info" && (
+                <Button size="sm" onClick={handleSave} disabled={updateProfile.isPending}>
+                  {updateProfile.isPending ? texts.common.saving : texts.common.save}
+                </Button>
+              )}
             </div>
           </div>
 

@@ -45,6 +45,7 @@ import { authApi, corporateApi, eventsApi, feedApi, networkApi, profileApi } fro
 import { clearFeedScroll, readFeedScroll } from "@/lib/feed-scroll-restoration";
 import { litePageSize } from "@/lib/lite-mode";
 import { requireAuth } from "@/lib/require-auth";
+import { ogMetas } from "@/lib/seo";
 import { useLiteMode } from "@/lib/use-lite-mode";
 import { useMediaUpload } from "@/lib/use-media-upload";
 import { cn } from "@/lib/utils";
@@ -122,6 +123,7 @@ export const Route = createFileRoute("/feed")({
         name: "description",
         content: texts.feed.seo.description,
       },
+      ...ogMetas(texts.feed.seo.title, texts.feed.seo.description),
     ],
   }),
   component: Home,
@@ -801,10 +803,14 @@ function Home() {
                     onClick={() => fileRef.current?.click()}
                   />
                 )}
-                {!pageMode && media.length > 0 && (
+                {((!pageMode && media.length > 0) || (pageMode && pageHtml.trim().length > 0)) && (
                   <ComposerAction
                     icon={EyeOff}
-                    label={mediaSpoiler ? texts.feed.composer.mediaSpoilerActive : texts.feed.composer.mediaSpoiler}
+                    label={
+                      mediaSpoiler
+                        ? texts.feed.composer.mediaSpoilerActive
+                        : texts.feed.composer.mediaSpoiler
+                    }
                     active={mediaSpoiler}
                     onClick={() => setMediaSpoiler((active) => !active)}
                   />

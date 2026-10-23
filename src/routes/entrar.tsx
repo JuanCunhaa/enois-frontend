@@ -18,6 +18,7 @@ import { ArrowRight, Loader2, MailCheck, ShieldCheck } from "lucide-react";
 import { z } from "zod";
 
 import { ApiError, authApi } from "@/lib/api";
+import { ogMetas } from "@/lib/seo";
 import { storeSession } from "@/lib/session";
 import { useCaptchaConfig } from "@/lib/use-captcha-config";
 
@@ -45,6 +46,7 @@ export const Route = createFileRoute("/entrar")({
         name: "description",
         content: texts.auth.seo.authDescription,
       },
+      ...ogMetas(texts.auth.seo.authTitle, texts.auth.seo.authDescription),
     ],
   }),
   component: Auth,
@@ -444,7 +446,7 @@ function SignupForm(_props: AuthFormProps) {
           )}
         </div>
 
-        {!!formError && <ErrorBanner error={formError} />}
+        {!!formError && <ErrorBanner error={formError} showDetails={false} />}
         {captchaMode === "TURNSTILE" && turnstileSiteKey && (
           <Turnstile
             ref={turnstileRef}
@@ -688,7 +690,7 @@ function LoginForm({ onDone, onForgot }: LoginFormProps) {
           />
         </Field>
 
-        {!!formError && <ErrorBanner error={formError} />}
+        {!!formError && <ErrorBanner error={formError} showDetails={false} />}
         {captcha.data?.captchaMode === "TURNSTILE" && turnstileSiteKey && (
           <Turnstile
             ref={loginTurnstileRef}

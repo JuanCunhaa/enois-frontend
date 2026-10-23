@@ -15,6 +15,13 @@ const P = "https://enois-qa.b7cloud.tech/api";
 
 export const API_BASE_URL = P;
 
+/**
+ * Base versionada: as mesmas rotas, com o endereco fixo. O backend reescreve `/api/v1/...` para o
+ * mesmo handler de `/api/...` (a resposta e a mesma), e `GET /api/v1` devolve o indice da versao
+ * gerado do proprio servidor.
+ */
+export const API_V1_BASE_URL = `${P}/v1`;
+
 export const apiSections: ApiSection[] = [
   {
     id: "auth",
