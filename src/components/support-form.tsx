@@ -118,14 +118,23 @@ export function SupportForm({ onSent }: { onSent?: () => void } = {}) {
         <select
           id="support-category"
           value={category}
-          onChange={(event) => setCategory(event.target.value as SupportCategory)}
+          onChange={(event) => {
+            const value = event.target.value as SupportCategory;
+            setCategory(value);
+            // Pedido de API: o formulário já vem com os campos que o time precisa conferir.
+            if (value === "API_ACCESS" && !message.trim()) {
+              setMessage(texts.support.apiAccessTemplate);
+            }
+          }}
           className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-base shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring md:text-sm"
         >
-          {(["BUG", "ACCOUNT", "CONTENT", "IDEA", "OTHER"] as SupportCategory[]).map((value) => (
-            <option key={value} value={value}>
-              {texts.support.categories[value]}
-            </option>
-          ))}
+          {(["BUG", "ACCOUNT", "CONTENT", "IDEA", "API_ACCESS", "OTHER"] as SupportCategory[]).map(
+            (value) => (
+              <option key={value} value={value}>
+                {texts.support.categories[value]}
+              </option>
+            ),
+          )}
         </select>
 
         <p className="text-xs text-muted-foreground">{texts.support.categoryHint}</p>

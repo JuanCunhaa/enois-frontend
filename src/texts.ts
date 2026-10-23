@@ -2986,8 +2986,11 @@ export const texts = {
       ACCOUNT: "Conta e acesso",
       CONTENT: "Conteúdo e denúncia",
       IDEA: "Ideia ou sugestão",
+      API_ACCESS: "Acesso à API de produção",
       OTHER: "Outro",
     } as Record<string, string>,
+    apiAccessTemplate:
+      "Pedido de acesso à API de produção (a API pública roda no sandbox).\n\nNome completo:\nRG:\nCPF:\nE-mail e telefone:\nEmpresa/projeto e site:\nTipo de integração (bot, painel, automação, app, cliente customizado):\nO que a integração vai fazer:\nVolume estimado de requisições e horários de uso:\n",
     message: "Descreva o problema",
     messagePlaceholder: "Quanto mais detalhes, melhor conseguimos ajudar.",
     contactEmail: "E-mail para contato",
