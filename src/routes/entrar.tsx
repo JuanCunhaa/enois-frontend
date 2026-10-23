@@ -613,7 +613,7 @@ function LoginForm({ onDone, onForgot }: LoginFormProps) {
       const result = await authApi.login({
         email: parsed.data.email,
         password: parsed.data.password,
-        turnstileToken: loginTurnstileRef.current?.getResponse() ?? undefined,
+
       });
 
       // Conta com segundo fator: a senha levou ao desafio, não à sessão.
@@ -691,13 +691,6 @@ function LoginForm({ onDone, onForgot }: LoginFormProps) {
         </Field>
 
         {!!formError && <ErrorBanner error={formError} showDetails={false} />}
-        {captcha.data?.captchaMode === "TURNSTILE" && turnstileSiteKey && (
-          <Turnstile
-            ref={loginTurnstileRef}
-            siteKey={turnstileSiteKey}
-            options={{ size: "flexible", theme: "dark" }}
-          />
-        )}
         <Button type="submit" className="w-full rounded-full gap-2" disabled={loading}>
           {loading ? (
             <Loader2 className="h-4 w-4 animate-spin" />
