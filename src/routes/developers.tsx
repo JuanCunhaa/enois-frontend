@@ -1,6 +1,6 @@
 import { type ComponentProps, useState } from "react";
 
-import { createFileRoute } from "@tanstack/react-router";
+import { Link, createFileRoute } from "@tanstack/react-router";
 
 import { API_BASE_URL, apiSections, apiUseCases } from "@/constants/developers-api";
 import { texts } from "@/texts";
@@ -184,6 +184,30 @@ function Developers() {
             </p>
 
             <p>{texts.developersChrome.intro}</p>
+
+            {/* Aviso do ambiente separado: a API pública roda no sandbox desde o incidente de
+                22/10. Produção exige pedido pelo suporte, com identificação e tipo de integração. */}
+            <div className="rounded-2xl border border-border-soft bg-surface-2 p-4">
+              <p className="text-sm font-medium text-text-strong">
+                {texts.developers.sandboxTitle}
+              </p>
+
+              <p className="mt-1 text-sm">{texts.developers.sandboxBody}</p>
+
+              <ul className="mt-2 list-disc space-y-1 pl-5 text-sm">
+                {texts.developers.sandboxFields.map((field) => (
+                  <li key={field}>{field}</li>
+                ))}
+              </ul>
+
+              <p className="mt-2 text-sm">{texts.developers.sandboxWhy}</p>
+
+              <p className="mt-2 text-sm">
+                <Link to="/suporte" className="font-medium text-primary hover:underline">
+                  {texts.developers.sandboxCta}
+                </Link>
+              </p>
+            </div>
 
             <CodeBlock
               code={`# 1. Autentique-se (o mesmo token que o app usa)
