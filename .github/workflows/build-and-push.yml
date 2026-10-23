@@ -208,52 +208,65 @@ jobs:
       (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
     runs-on: [self-hosted, enois, docker-prod4]
     steps:
-      - name: 🚢 Recriar container via Portainer API (endpoint enois-node1)
+      # Deploy sempre via Portainer STACK (nunca container avulso via /containers/create).
+      # Stack "enois-prod-frontend" (id 352) no endpoint 10 (enois-node1), criada em 2026-10-23
+      # convertendo o container avulso que ja rodava (zero downtime). PUT /stacks/{id} atualiza
+      # o StackFileContent com a tag de imagem nova e faz o Portainer recriar o container.
+      - name: 🚢 Atualizar stack via Portainer API (endpoint enois-node1)
         env:
           PORTAINER_BASE_URL: ${{ secrets.PORTAINER_BASE_URL }}
           PORTAINER_API_KEY: ${{ secrets.PORTAINER_API_KEY }}
           PORTAINER_ENDPOINT_ID_PROD: 10
+          PROD_STACK_ID: 352
           IMAGE_REF: ${{ env.HARBOR_REGISTRY }}/${{ env.HARBOR_PROJECT }}/${{ env.IMAGE_NAME }}:${{ needs.build-and-push.outputs.image_tag }}
-          HARBOR_USER: ${{ secrets.HARBOR_USER }}
-          HARBOR_PASSWORD: ${{ secrets.HARBOR_PASSWORD }}
         run: |
           set -euo pipefail
-          API="${PORTAINER_BASE_URL}/api/endpoints/${PORTAINER_ENDPOINT_ID_PROD}/docker"
           AUTH=(-H "X-API-Key: ${PORTAINER_API_KEY}" -H "Referer: ${PORTAINER_BASE_URL}")
-          PROD_CONTAINER_NAME="enois-prod-frontend"
 
-          echo "==> Pull ${IMAGE_REF}"
-          ENCODED_IMAGE=$(python3 -c "import urllib.parse,os;print(urllib.parse.quote(os.environ['IMAGE_REF'].rsplit(':',1)[0]))")
-          TAG=$(echo "${IMAGE_REF}" | rev | cut -d: -f1 | rev)
-          REGISTRY_AUTH=$(python3 -c "import json,base64,os;print(base64.b64encode(json.dumps({'username':os.environ['HARBOR_USER'],'password':os.environ['HARBOR_PASSWORD'],'serveraddress':'${HARBOR_REGISTRY}'}).encode()).decode())")
-          curl -sf -X POST "${AUTH[@]}" -H "X-Registry-Auth: ${REGISTRY_AUTH}" "${API}/images/create?fromImage=${ENCODED_IMAGE}&tag=${TAG}"
-
-          echo "==> Stop + remove container antigo (ignora erro se não existir)"
-          curl -s -X POST "${AUTH[@]}" "${API}/containers/${PROD_CONTAINER_NAME}/stop" || true
-          curl -s -X DELETE "${AUTH[@]}" "${API}/containers/${PROD_CONTAINER_NAME}?v=1" || true
-
-          echo "==> Criar container novo"
-          cat > /tmp/enois-frontend-prod-deploy.json <<EOF
-          {
-            "Image": "${IMAGE_REF}",
-            "Env": ["PORT=3000", "NODE_ENV=production"],
-            "ExposedPorts": {"3000/tcp": {}},
-            "HostConfig": {
-              "RestartPolicy": {"Name": "unless-stopped"},
-              "Memory": 536870912,
-              "MemorySwap": 536870912,
-              "MemoryReservation": 268435456,
-              "PortBindings": {"3000/tcp": [{"HostPort": "8106"}]}
-            }
-          }
+          echo "==> Gerar docker-compose da stack com a imagem atual"
+          cat > /tmp/enois-prod-frontend-stack.yml <<EOF
+          version: "3.8"
+          services:
+            frontend:
+              image: ${IMAGE_REF}
+              container_name: enois-prod-frontend
+              restart: unless-stopped
+              # enois-node1 e dedicado exclusivamente a este projeto (6 vCPU/11.67GB), so roda
+              # este container. Limite anterior era 512MB/256MB (curto pra SSR Node/Nitro).
+              mem_limit: 2g
+              mem_reservation: 1g
+              memswap_limit: 2g
+              environment:
+                PORT: "3000"
+                NODE_ENV: production
+              ports:
+                - "8106:3000"
           EOF
-          curl -sf -X POST "${AUTH[@]}" -H "Content-Type: application/json" \
-            "${API}/containers/create?name=${PROD_CONTAINER_NAME}" -d @/tmp/enois-frontend-prod-deploy.json
 
-          echo "==> Start"
-          curl -sf -X POST "${AUTH[@]}" "${API}/containers/${PROD_CONTAINER_NAME}/start"
+          echo "==> Montar payload JSON (python escapa o YAML certo pro body)"
+          python3 -c "
+          import json
+          with open('/tmp/enois-prod-frontend-stack.yml') as f:
+              content = f.read()
+          payload = {'stackFileContent': content, 'env': [], 'prune': True, 'pullImage': True}
+          with open('/tmp/stack-update-payload.json', 'w') as f:
+              json.dump(payload, f)
+          "
+
+          echo "==> PUT /stacks/${PROD_STACK_ID} (endpointId=${PORTAINER_ENDPOINT_ID_PROD})"
+          curl -sf -X PUT "${AUTH[@]}" -H "Content-Type: application/json" \
+            "${PORTAINER_BASE_URL}/api/stacks/${PROD_STACK_ID}?endpointId=${PORTAINER_ENDPOINT_ID_PROD}" \
+            -d @/tmp/stack-update-payload.json
 
       - name: 🩺 Health check
         run: |
-          sleep 5
-          curl -sfI --max-time 15 https://enois.ia.br | head -1
+          for i in $(seq 1 15); do
+            if curl -sf --max-time 10 https://enois.ia.br; then
+              echo "OK na tentativa $i"
+              exit 0
+            fi
+            echo "tentativa $i falhou, aguardando..."
+            sleep 5
+          done
+          echo "health check nao respondeu apos 75s"
+          exit 1
